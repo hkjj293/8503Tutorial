@@ -514,7 +514,7 @@ bool TutorialGame::SelectObject() {
 				selectionObject = nullptr;
 				lockedObject	= nullptr;
 			}
-
+			//GG
 			Ray ray = CollisionDetection::BuildRayFromMouse(*world->GetMainCamera());
 
 			Vector3 pos = ray.GetPosition() - Vector3(0,1,0);
@@ -522,7 +522,7 @@ bool TutorialGame::SelectObject() {
 			RayCollision closestCollision;
 
 			int mask = 1 | 2 | 4 | 16;
-			if (world->Raycast(ray, closestCollision, true, mask)) {
+			if (world->Raycast(ray, closestCollision, true, nullptr, mask)) {
 				selectionObject = (GameObject*)closestCollision.node;
 				selectionObject->GetRenderObject()->SetColour(Vector4(0, 1, 0, 1));
 
@@ -574,5 +574,18 @@ void TutorialGame::MoveSelectedObject() {
 }
 
 void TutorialGame::CheckIfObjectSee() {
+	GameObjectIterator start;
+	GameObjectIterator end;
+	world->GetObjectIterators(start, end);
 
+	for (auto& it = start; it != end; ++it) {
+		Ray ray = Ray((*it)->GetTransform().GetPosition(), Vector3(0, 0, -1));
+		RayCollision closestCollision;
+		world->Raycast(ray, closestCollision, true,(*it));
+		if (closestCollision.node && ((GameObject*)closestCollision.node)->GetRenderObject()) {
+			(*it)->GetRenderObject()->SetColour(Vector4(0, 1, 1, 1));
+			((GameObject*)closestCollision.node)->GetRenderObject()->SetColour(Vector4(1, 0, 0, 1));
+			Debug::DrawLine((*it)->GetTransform().GetPosition(), closestCollision.collidedAt);
+		}
+	}
 }
