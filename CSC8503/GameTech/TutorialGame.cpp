@@ -128,6 +128,10 @@ void TutorialGame::UpdateKeys() {
 		useGravity = !useGravity; //Toggle gravity!
 		physics->UseGravity(useGravity);
 	}
+	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::Y)) {
+		AddSphereToWorld(Vector3(0, 100, 0), 1, 10.0f, true, 0.9);
+		AddSphereToWorld(Vector3(4, 100, 0), 1, 10.0f);
+	}
 	//Running certain physics updates in a consistent order might cause some
 	//bias in the calculations - the same objects might keep 'winning' the constraint
 	//allowing the other one to stretch too much etc. Shuffling the order so that it
@@ -290,12 +294,12 @@ rigid body representation. This and the cube function will let you build a lot o
 physics worlds. You'll probably need another function for the creation of OBB cubes too.
 
 */
-GameObject* TutorialGame::AddSphereToWorld(const Vector3& position, float radius, float inverseMass) {
+GameObject* TutorialGame::AddSphereToWorld(const Vector3& position, float radius, float inverseMass, bool hollow, float innerRadius) {
 	GameObject* sphere = new GameObject();
 	sphere->SetLayer(32);
 
 	Vector3 sphereSize = Vector3(radius, radius, radius);
-	SphereVolume* volume = new SphereVolume(radius);
+	SphereVolume* volume = new SphereVolume(radius,hollow,innerRadius);
 	sphere->SetBoundingVolume((CollisionVolume*)volume);
 
 	sphere->GetTransform()
@@ -305,8 +309,12 @@ GameObject* TutorialGame::AddSphereToWorld(const Vector3& position, float radius
 	sphere->SetRenderObject(new RenderObject(&sphere->GetTransform(), sphereMesh, basicTex, basicShader));
 	sphere->SetPhysicsObject(new PhysicsObject(&sphere->GetTransform(), sphere->GetBoundingVolume()));
 
-	sphere->GetPhysicsObject()->SetInverseMass(inverseMass);
-	sphere->GetPhysicsObject()->InitSphereInertia();
+	sphere->GetPhysicsObject()->SetInverseMass(inverseMass); 
+	sphere->GetPhysicsObject()->InitSphereInertia(volume->GetHollow(),volume->GetInnerRadius());
+
+	if (hollow) {
+		sphere->GetRenderObject()->SetColour(Vector4(1, 0, 0, 1));
+	}
 
 	world->AddGameObject(sphere);
 
@@ -336,10 +344,9 @@ GameObject* TutorialGame::AddCapsuleToWorld(const Vector3& position, float halfH
 }
 
 GameObject* TutorialGame::AddCubeToWorld(const Vector3& position, Vector3 dimensions, float inverseMass) {
-	GameObject* cube = new GameObject();
+	GameObject* cube = new GameObject("Cube");
 	cube->SetLayer(16);
-
-	AABBVolume* volume = new AABBVolume(dimensions);
+	OBBVolume* volume = new OBBVolume(dimensions);
 
 	cube->SetBoundingVolume((CollisionVolume*)volume);
 
@@ -573,7 +580,7 @@ line - after the third, they'll be able to twist under torque aswell.
 */
 void TutorialGame::MoveSelectedObject() {
 	renderer->DrawString("Click Force:" + std::to_string(forceMagnitude), Vector2(10, 20));
-	forceMagnitude += Window::GetMouse()->GetWheelMovement() * 1.0f;
+	forceMagnitude += Window::GetMouse()->GetWheelMovement() * 0.1f;
 
 	if (!selectionObject){
 		return;

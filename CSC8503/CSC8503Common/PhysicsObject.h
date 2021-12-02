@@ -60,7 +60,7 @@ namespace NCL {
 			}
 
 			void InitCubeInertia();
-			void InitSphereInertia();
+			void InitSphereInertia(bool hollow = false, float innerRadius = 0);
 
 			void UpdateInertiaTensor();
 
