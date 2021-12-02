@@ -81,10 +81,12 @@ void TutorialGame::UpdateGame(float dt) {
 		Debug::Print("(G)ravity off", Vector2(5, 95));
 	}
 
+	CheckIfObjectSee();
 	SelectObject();
 	MoveSelectedObject();
-	CheckIfObjectSee();
+
 	physics->Update(dt);
+	
 
 	if (lockedObject != nullptr) {
 		Vector3 objPos = lockedObject->GetTransform().GetPosition();
@@ -521,7 +523,7 @@ bool TutorialGame::SelectObject() {
 
 			RayCollision closestCollision;
 
-			int mask = 1 | 2 | 4 | 16;
+			int mask = 0xFFFFFFFF; 1 | 2 | 4 | 16;
 			if (world->Raycast(ray, closestCollision, true, nullptr, mask)) {
 				selectionObject = (GameObject*)closestCollision.node;
 				selectionObject->GetRenderObject()->SetColour(Vector4(0, 1, 0, 1));
@@ -571,7 +573,7 @@ line - after the third, they'll be able to twist under torque aswell.
 */
 void TutorialGame::MoveSelectedObject() {
 	renderer->DrawString("Click Force:" + std::to_string(forceMagnitude), Vector2(10, 20));
-	forceMagnitude += Window::GetMouse()->GetWheelMovement() * 100.0f;
+	forceMagnitude += Window::GetMouse()->GetWheelMovement() * 1.0f;
 
 	if (!selectionObject){
 		return;
@@ -581,8 +583,8 @@ void TutorialGame::MoveSelectedObject() {
 		Ray ray = CollisionDetection::BuildRayFromMouse(*world->GetMainCamera());
 		RayCollision closestCollision;
 		if (world->Raycast(ray, closestCollision, true)) {
-			if (closestCollision.node == selectionObject) {
-				selectionObject->GetPhysicsObject()->AddForce(ray.GetDirection() * forceMagnitude);
+			if ((GameObject*)closestCollision.node == selectionObject) {
+				selectionObject->GetPhysicsObject()->AddForceAtPosition(ray.GetDirection() * forceMagnitude, closestCollision.collidedAt);
 			}
 		}
 	}
@@ -601,6 +603,9 @@ void TutorialGame::CheckIfObjectSee() {
 			(*it)->GetRenderObject()->SetColour(Vector4(0, 1, 1, 1));
 			((GameObject*)closestCollision.node)->GetRenderObject()->SetColour(Vector4(1, 0, 0, 1));
 			Debug::DrawLine((*it)->GetTransform().GetPosition(), closestCollision.collidedAt);
+		}
+		else {
+			(*it)->GetRenderObject()->SetColour(Vector4(1, 1, 1, 1));
 		}
 	}
 }
