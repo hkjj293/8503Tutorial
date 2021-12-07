@@ -81,9 +81,11 @@ void TutorialGame::UpdateGame(float dt) {
 		Debug::Print("(G)ravity off", Vector2(5, 95));
 	}
 
-	CheckIfObjectSee();
+	//CheckIfObjectSee();
 	SelectObject();
 	MoveSelectedObject();
+
+	Sleep(1);
 
 	physics->Update(dt);
 	

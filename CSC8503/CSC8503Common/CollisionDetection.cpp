@@ -109,7 +109,23 @@ bool CollisionDetection::RayOBBIntersection(const Ray&r, const Transform& worldT
 }
 
 bool CollisionDetection::RayCapsuleIntersection(const Ray& r, const Transform& worldTransform, const CapsuleVolume& volume, RayCollision& collision) {
-	return false;
+	Quaternion orientation = worldTransform.GetOrientation();
+	Vector3 position = worldTransform.GetPosition();
+
+	Vector3 up =(worldTransform.GetMatrix() * Vector3(0,1,0)) * (volume.GetHalfHeight() - volume.GetRadius());
+	Vector3 down = -up;
+	Vector3 distance = r.GetPosition() - position;
+	Vector3 tangent = Vector3::Cross(up, distance);
+
+	Vector3 intersectPoint = 
+
+	bool collided = RayBoxIntersection(r, Vector3(), volume.GetHalfHeight(), collision);
+
+	if (collided) {
+		collision.collidedAt = transform * collision.collidedAt + position;
+	}
+	return collided;
+
 }
 
 bool CollisionDetection::RaySphereIntersection(const Ray&r, const Transform& worldTransform, const SphereVolume& volume, RayCollision& collision) {
@@ -461,6 +477,8 @@ bool CollisionDetection::AABBSphereIntersection(const AABBVolume& volumeA, const
 bool CollisionDetection::OBBIntersection(
 	const OBBVolume& volumeA, const Transform& worldTransformA,
 	const OBBVolume& volumeB, const Transform& worldTransformB, CollisionInfo& collisionInfo) {
+	return false;
+	/*
 	if ((worldTransformA.GetPosition() - worldTransformB.GetPosition()).Length() > (volumeA.GetHalfDimensions().Length() + volumeB.GetHalfDimensions().Length())) {
 		return false;
 	}
@@ -512,13 +530,19 @@ bool CollisionDetection::OBBIntersection(
 	};
 	for (int i = 0; i < 3; i++) {
 		RayCollision collision;
-		if (RayBoxIntersection(edges[i], Vector3(0, 0, 0), boxSizeA, collision)) {
+		if (RayBoxIntersection(edges[i], Vector3(0, 0, 0), boxSizeA, collision) && 
+								((GameObject*)collision.node) &&
+								((GameObject*)collision.node)->GetRenderObject() &&
+								((GameObject*)collision.node)->GetBoundingVolume() &&
+								((GameObject*)collision.node)->GetBoundingVolume()->type == VolumeType::OBB) {
 			collisionInfo.AddContactPoint(collision.collidedAt, invTransformA * collision.collidedAt, (positionB - positionA).Normalised(), (collision.collidedAt - ClosestPoint).Length());
 			std::cout << "Collision at: " << invTransformB * invTransformA * collision.collidedAt << std::endl;
+			((GameObject*)collision.node)->GetRenderObject()->SetColour(Vector4(1, 0, 0, 1));
 			return true;
 		}
 	}
 	return false;
+	*/
 }
 
 bool CollisionDetection::SphereCapsuleIntersection(

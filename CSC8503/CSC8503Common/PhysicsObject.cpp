@@ -4,8 +4,6 @@
 using namespace NCL;
 using namespace CSC8503;
 
-float SphereVolumeCoef = 4.188790204f;
-
 PhysicsObject::PhysicsObject(Transform* parentTransform, const CollisionVolume* parentVolume)	{
 	transform	= parentTransform;
 	volume		= parentVolume;
@@ -67,13 +65,12 @@ void PhysicsObject::InitSphereInertia(bool hollow, float innerRadius) {
 	float radiusSquare = radius * radius;
 	float i			= 2.5f * inverseMass / radiusSquare;
 	if (hollow) {
-		float innerRadiusSquare = innerRadius * innerRadius;
-		float volumeWhole = SphereVolumeCoef * radiusSquare * radius;
-		float volumeInner = SphereVolumeCoef * innerRadiusSquare * innerRadius;
-		float inverseMassInner = (volumeWhole - volumeInner) * inverseMass * (1 / volumeInner);
-		float iInner = 2.5f * inverseMassInner / innerRadiusSquare;
-		float iwhole = 2.5f * ((inverseMassInner + inverseMass) / (inverseMassInner * inverseMass)) / radiusSquare;
-		i = (iwhole * iInner) / (iInner - iwhole);
+		if (innerRadius >= radius) {
+			i = 1.5f * inverseMass / radiusSquare;
+		}
+		else {
+			i = 2.5f * inverseMass / (radiusSquare + innerRadius * innerRadius);
+		}
 	}
 	inverseInertia	= Vector3(i, i, i);
 }

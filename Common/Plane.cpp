@@ -1,4 +1,4 @@
-/*
+ /*
 Part of Newcastle University's Game Engineering source code.
 
 Use as you see fit!
