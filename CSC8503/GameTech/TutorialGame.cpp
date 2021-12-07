@@ -131,8 +131,9 @@ void TutorialGame::UpdateKeys() {
 		physics->UseGravity(useGravity);
 	}
 	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::Y)) {
-		AddSphereToWorld(Vector3(0, 100, 0), 1, 10.0f, true, 0.9);
-		AddSphereToWorld(Vector3(4, 100, 0), 1, 10.0f);
+		AddSphereToWorld(Vector3(0, 20, 0), 1, 10.0f, true, 0.9);
+		AddSphereToWorld(Vector3(4, 20, 0), 1, 10.0f);
+		AddCapsuleToWorld(Vector3(8, 20, 0), 1, 0.5f);
 	}
 	//Running certain physics updates in a consistent order might cause some
 	//bias in the calculations - the same objects might keep 'winning' the constraint
@@ -297,7 +298,7 @@ physics worlds. You'll probably need another function for the creation of OBB cu
 
 */
 GameObject* TutorialGame::AddSphereToWorld(const Vector3& position, float radius, float inverseMass, bool hollow, float innerRadius) {
-	GameObject* sphere = new GameObject();
+	GameObject* sphere = new GameObject("sphere");
 	sphere->SetLayer(32);
 
 	Vector3 sphereSize = Vector3(radius, radius, radius);
@@ -324,7 +325,8 @@ GameObject* TutorialGame::AddSphereToWorld(const Vector3& position, float radius
 }
 
 GameObject* TutorialGame::AddCapsuleToWorld(const Vector3& position, float halfHeight, float radius, float inverseMass) {
-	GameObject* capsule = new GameObject();
+	GameObject* capsule = new GameObject("capsule");
+	capsule->SetLayer(64);
 
 	CapsuleVolume* volume = new CapsuleVolume(halfHeight, radius);
 	capsule->SetBoundingVolume((CollisionVolume*)volume);
@@ -389,7 +391,7 @@ void TutorialGame::InitMixedGridWorld(int numRows, int numCols, float rowSpacing
 				AddCubeToWorld(position, cubeDims);
 			}
 			else {
-				AddSphereToWorld(position, sphereRadius);
+				//AddSphereToWorld(position, sphereRadius);
 			}
 		}
 	}
@@ -532,7 +534,7 @@ bool TutorialGame::SelectObject() {
 
 			RayCollision closestCollision;
 
-			int mask = 0xFFFFFFFF; 1 | 2 | 4 | 16;
+			int mask = 0xFFFFFFFF; //1 | 2 | 4 | 16;
 			if (world->Raycast(ray, closestCollision, true, nullptr, mask)) {
 				selectionObject = (GameObject*)closestCollision.node;
 				selectionObject->GetRenderObject()->SetColour(Vector4(0, 1, 0, 1));
