@@ -1,5 +1,6 @@
 #pragma once
 #include "Constraint.h"
+#include "GameObject.h"
 
 namespace NCL {
 	namespace CSC8503 {
@@ -7,10 +8,12 @@ namespace NCL {
 
 		class OrientationConstraint : public Constraint {
 		public:
-			OrientationConstraint(GameObject* a, GameObject* b, float rotate) {
+			OrientationConstraint(GameObject* a, GameObject* b, float x, float y, float z) {
 				objA = a;
 				objB = b;
-				rotation = rotate;
+				this->x = x;
+				this->y = y;
+				this->z = z;
 			}
 			~OrientationConstraint() {}
 
@@ -19,8 +22,9 @@ namespace NCL {
 		protected:
 			GameObject* objA;
 			GameObject* objB;
-
-			float rotation;
+			float x;
+			float y;
+			float z;
 		};
 	}
 }

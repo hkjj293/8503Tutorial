@@ -10,7 +10,7 @@ namespace NCL {
 
 			float offset = distance - currentDistance;
 
-			if (currentDistance > distance) {
+			if (offset < 0) {
 				Vector3 offsetDir = relativePos.Normalised();
 
 				PhysicsObject* physA = objA->GetPhysicsObject();
