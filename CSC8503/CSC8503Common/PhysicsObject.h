@@ -31,6 +31,30 @@ namespace NCL {
 				return force;
 			}
 
+			void SetLinearResistance(Vector3 linearResist) {
+				linearResistance = linearResist;
+			}
+
+			Vector3 GetLinearResistance() const {
+				return linearResistance;
+			}
+
+			void SetAngularResistance(Vector3 angularResist) {
+				angularResistance = angularResist;
+			}
+
+			Vector3 GetAngularResistance() const {
+				return angularResistance;
+			}
+
+			void SetElasticity(float elasticity) {
+				this->elasticity = elasticity;
+			}
+
+			float GetElasticity() const {
+				return elasticity;
+			}
+
 			void SetInverseMass(float invMass) {
 				inverseMass = invMass;
 			}
@@ -79,6 +103,7 @@ namespace NCL {
 			//linear stuff
 			Vector3 linearVelocity;
 			Vector3 force;
+			Vector3 linearResistance;
 			
 
 			//angular stuff
@@ -86,6 +111,7 @@ namespace NCL {
 			Vector3 torque;
 			Vector3 inverseInertia;
 			Matrix3 inverseInteriaTensor;
+			Vector3 angularResistance;
 		};
 	}
 }

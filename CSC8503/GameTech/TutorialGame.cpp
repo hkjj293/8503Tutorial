@@ -4,6 +4,7 @@
 #include "../../Plugins/OpenGLRendering/OGLShader.h"
 #include "../../Plugins/OpenGLRendering/OGLTexture.h"
 #include "../../Common/TextureLoader.h"
+#include "../CSC8503Common/PositionConstraint.h"
 
 using namespace NCL;
 using namespace CSC8503;
@@ -49,6 +50,7 @@ void TutorialGame::InitialiseAssets() {
 
 	InitCamera();
 	InitWorld();
+	
 }
 
 TutorialGame::~TutorialGame()	{
@@ -84,8 +86,6 @@ void TutorialGame::UpdateGame(float dt) {
 	//CheckIfObjectSee();
 	SelectObject();
 	MoveSelectedObject();
-
-	Sleep(1);
 
 	physics->Update(dt);
 	
@@ -257,11 +257,32 @@ void TutorialGame::InitWorld() {
 	InitMixedGridWorld(5, 5, 3.5f, 3.5f);
 	InitGameExamples();
 	InitDefaultFloor();
+	BridgeConstraintTest();
 }
 
 void TutorialGame::BridgeConstraintTest() {
+	Vector3 cubeSize = Vector3(8, 8, 8);
 
+	float invCubeMass = 50;
+	int numLinks = 10;
+	float maxDistance = 30;
+	float cubeDistance = 20;
 
+	Vector3 startPos = Vector3(100, 100, 100);
+
+	GameObject* start = AddCubeToWorld(startPos + Vector3(0, 0, 0), cubeSize, 0);
+	GameObject* end = AddCubeToWorld(startPos + Vector3((numLinks + 2) * cubeDistance, 0, 0), cubeSize, 0);
+
+	GameObject* previous = start;
+
+	for (int i = 0; i < numLinks; ++i) {
+		GameObject* block = AddCubeToWorld(startPos + Vector3((i + 1) * cubeDistance, 0, 0), cubeSize, invCubeMass);
+		PositionConstraint* constraint = new PositionConstraint(previous, block, maxDistance);
+		world->AddConstraint(constraint);
+		previous = block;
+	}
+	PositionConstraint* constraint = new PositionConstraint(previous, end, maxDistance);
+	world->AddConstraint(constraint);
 }
 
 /*
@@ -312,6 +333,8 @@ GameObject* TutorialGame::AddSphereToWorld(const Vector3& position, float radius
 	sphere->SetRenderObject(new RenderObject(&sphere->GetTransform(), sphereMesh, basicTex, basicShader));
 	sphere->SetPhysicsObject(new PhysicsObject(&sphere->GetTransform(), sphere->GetBoundingVolume()));
 
+	sphere->GetPhysicsObject()->SetLinearResistance(Vector3(0.5, 0.5, 0.5));
+	sphere->GetPhysicsObject()->SetAngularResistance(Vector3(0.2, 0.2, 0.2));
 	sphere->GetPhysicsObject()->SetInverseMass(inverseMass); 
 	sphere->GetPhysicsObject()->InitSphereInertia(volume->GetHollow(),volume->GetInnerRadius());
 
@@ -338,6 +361,8 @@ GameObject* TutorialGame::AddCapsuleToWorld(const Vector3& position, float halfH
 	capsule->SetRenderObject(new RenderObject(&capsule->GetTransform(), capsuleMesh, basicTex, basicShader));
 	capsule->SetPhysicsObject(new PhysicsObject(&capsule->GetTransform(), capsule->GetBoundingVolume()));
 
+	capsule->GetPhysicsObject()->SetLinearResistance(Vector3(0.5, 0.3, 0.5));
+	capsule->GetPhysicsObject()->SetAngularResistance(Vector3(0.7, 0.1, 0.7));
 	capsule->GetPhysicsObject()->SetInverseMass(inverseMass);
 	capsule->GetPhysicsObject()->InitCubeInertia();
 
@@ -361,6 +386,8 @@ GameObject* TutorialGame::AddCubeToWorld(const Vector3& position, Vector3 dimens
 	cube->SetRenderObject(new RenderObject(&cube->GetTransform(), cubeMesh, basicTex, basicShader));
 	cube->SetPhysicsObject(new PhysicsObject(&cube->GetTransform(), cube->GetBoundingVolume()));
 
+	cube->GetPhysicsObject()->SetLinearResistance(Vector3(0.7, 0.7, 0.7));
+	cube->GetPhysicsObject()->SetAngularResistance(Vector3(0.5, 0.5, 0.5));
 	cube->GetPhysicsObject()->SetInverseMass(inverseMass);
 	cube->GetPhysicsObject()->InitCubeInertia();
 
@@ -584,7 +611,7 @@ line - after the third, they'll be able to twist under torque aswell.
 */
 void TutorialGame::MoveSelectedObject() {
 	renderer->DrawString("Click Force:" + std::to_string(forceMagnitude), Vector2(10, 20));
-	forceMagnitude += Window::GetMouse()->GetWheelMovement() * 0.1f;
+	forceMagnitude += Window::GetMouse()->GetWheelMovement();
 
 	if (!selectionObject){
 		return;

@@ -36,6 +36,11 @@ namespace NCL {
 
 			~Vector3(void) {}
 
+			Vector3 Abs() const{
+				Vector3 temp(abs(x), abs(y), abs(z));
+				return temp;
+			}
+
 			Vector3 Normalised() const {
 				Vector3 temp(x, y, z);
 				temp.Normalise();
@@ -52,6 +57,7 @@ namespace NCL {
 					z = z * length;
 				}
 			}
+
 
 			float	Length() const {
 				return sqrt((x*x) + (y*y) + (z*z));

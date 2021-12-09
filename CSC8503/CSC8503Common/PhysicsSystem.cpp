@@ -24,7 +24,7 @@ PhysicsSystem::PhysicsSystem(GameWorld& g) : gameWorld(g)	{
 	useBroadPhase	= false;	
 	dTOffset		= 0.0f;
 	globalDamping	= 0.995f;
-	SetGravity(Vector3(0.0f, -9.8f, 0.0f));
+	SetGravity(Vector3(0.0f, -9.81f, 0.0f));
 }
 
 PhysicsSystem::~PhysicsSystem()	{
@@ -251,7 +251,7 @@ void PhysicsSystem::ImpulseResolveCollision(GameObject& a, GameObject& b, Collis
 
 	float angularEffect = Vector3::Dot(inertiaA + inertiaB, p.normal);
 
-	float cRestitution = 0.66f; // disperse some kinectic energy
+	float cRestitution = physA->GetElasticity() * physB->GetElasticity(); // disperse some kinectic energy
 
 	float j = (-(1.0f + cRestitution) * impulseForce) / (totalMass + angularEffect);
 
@@ -336,28 +336,31 @@ void PhysicsSystem::IntegrateVelocity(float dt) {
 	std::vector<GameObject*>::const_iterator first;
 	std::vector<GameObject*>::const_iterator last;
 	gameWorld.GetObjectIterators(first, last);
-	float frameLinearDamping = 1.0f - (0.99f * dt);
-	float frameAngularDamping = 1.0f - (0.99f * dt);
 
 	for (auto i = first; i != last; ++i) {
 		PhysicsObject* object = (*i)->GetPhysicsObject();
 		if (object == nullptr) {
 			continue;
 		}
+
 		Transform& transform = (*i)->GetTransform();
 
 		Vector3 position = transform.GetPosition();
 		Vector3 linearVel = object->GetLinearVelocity();
-		position += linearVel;
-		transform.SetPosition(position);
 
+		Quaternion orientation = transform.GetOrientation();
+		Vector3 angVel = object->GetAngularVelocity();
+
+		Vector3 frameLinearDamping = Vector3(1, 1, 1) - (Matrix3(orientation) * object->GetLinearResistance() * dt).Abs();
+		Vector3 frameAngularDamping = Vector3(1, 1, 1) - (Matrix3(orientation) * object->GetAngularResistance() * dt).Abs();
+
+		//Linear
+		position += linearVel * dt;
+		transform.SetPosition(position);
 		linearVel = linearVel * frameLinearDamping;
 		object->SetLinearVelocity(linearVel);
 
 		// Orientation
-		Quaternion orientation = transform.GetOrientation();
-		Vector3 angVel = object->GetAngularVelocity();
-
 		orientation = orientation + (Quaternion(angVel * dt * 0.5, 0.0f) * orientation);
 		orientation.Normalise();
 
