@@ -391,7 +391,7 @@ void TutorialGame::InitMixedGridWorld(int numRows, int numCols, float rowSpacing
 				AddCubeToWorld(position, cubeDims);
 			}
 			else {
-				//AddSphereToWorld(position, sphereRadius);
+				AddSphereToWorld(position, sphereRadius);
 			}
 		}
 	}

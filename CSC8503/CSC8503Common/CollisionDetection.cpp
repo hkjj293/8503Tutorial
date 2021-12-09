@@ -621,3 +621,13 @@ bool CollisionDetection::SphereCapsuleIntersection(
 	}
 	return false;
 }
+
+
+bool CollisionDetection::CapsuleIntersection(
+	const CapsuleVolume& volumeA, const Transform& worldTransformA,
+	const CapsuleVolume& volumeB, const Transform& worldTransformB, CollisionInfo& collisionInfo) {
+
+
+
+	return false;
+}
