@@ -44,4 +44,11 @@ void GameObject::UpdateBroadphaseAABB() {
 		Vector3 halfSizes = ((OBBVolume&)*boundingVolume).GetHalfDimensions();
 		broadphaseAABB = mat * halfSizes;
 	}
+	else if (boundingVolume->type == VolumeType::Capsule) {
+		Matrix3 mat = Matrix3(transform.GetOrientation());
+		mat = mat.Absolute();
+		CapsuleVolume volume = (CapsuleVolume&)*boundingVolume;
+		Vector3 halfSizes = Vector3(volume.GetRadius(),volume.GetHalfHeight(), volume.GetRadius());
+		broadphaseAABB = mat * halfSizes;
+	}
 }

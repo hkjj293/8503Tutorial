@@ -82,12 +82,12 @@ void TutorialGame::UpdateGame(float dt) {
 	else {
 		Debug::Print("(G)ravity off", Vector2(5, 95));
 	}
-
 	//CheckIfObjectSee();
 	SelectObject();
 	MoveSelectedObject();
-
+	Sleep(1);
 	physics->Update(dt);
+	
 	
 
 	if (lockedObject != nullptr) {
@@ -640,7 +640,7 @@ void TutorialGame::CheckIfObjectSee() {
 		if (closestCollision.node && ((GameObject*)closestCollision.node)->GetRenderObject()) {
 			(*it)->GetRenderObject()->SetColour(Vector4(0, 1, 1, 1));
 			((GameObject*)closestCollision.node)->GetRenderObject()->SetColour(Vector4(1, 0, 0, 1));
-			Debug::DrawLine((*it)->GetTransform().GetPosition(), closestCollision.collidedAt);
+			Debug::DrawLine((*it)->GetTransform().GetPosition(), closestCollision.collidedAt, Vector4(1, 0, 1, 1),1.0f);
 		}
 		else {
 			(*it)->GetRenderObject()->SetColour(Vector4(1, 1, 1, 1));

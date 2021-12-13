@@ -6,7 +6,7 @@ namespace NCL {
 		public:
 			State() {}
 			virtual ~State() {}
-			virtual void Update() = 0; //Pure virtual base class
+			virtual void Update(float dt) = 0; //Pure virtual base class
 		};
 
 		typedef void(*StateFunc)(void*);

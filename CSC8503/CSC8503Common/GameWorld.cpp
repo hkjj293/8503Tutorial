@@ -2,6 +2,7 @@
 #include "GameObject.h"
 #include "Constraint.h"
 #include "CollisionDetection.h"
+#include <set>
 #include "../../Common/Camera.h"
 #include <algorithm>
 
@@ -73,8 +74,30 @@ void GameWorld::UpdateWorld(float dt) {
 bool GameWorld::Raycast(Ray& r, RayCollision& closestCollision, bool closestObject, GameObject* ignore,  unsigned int mask) const {
 	//The simplest raycast just goes through each object and sees if there's a collision
 	RayCollision collision;
-	
+
+	std::set<GameObject*> broadphaseCollisions;
+	int count = 0;
+	QuadTree <GameObject*> tree(Vector2(1024, 1024), 7, 6);
 	for (auto& i : gameObjects) {
+		Vector3 halfSizes;
+		if (!i->GetBroadphaseAABB(halfSizes)) {
+			continue;
+		}
+		Vector3 pos = i->GetTransform().GetPosition();
+		tree.Insert(i, pos, halfSizes);
+	}
+
+	//tree.DebugDraw();
+
+	tree.OperateOnRayCastContents(
+		r,
+		[&](std::list <QuadTreeEntry <GameObject*>>& data) {
+			for (auto it = data.begin(); it != data.end(); ++it) {
+				broadphaseCollisions.insert(it->object);
+			}
+		});
+
+	for (auto& i : broadphaseCollisions) {
 		if (ignore && i == ignore) {
 			continue;
 		}

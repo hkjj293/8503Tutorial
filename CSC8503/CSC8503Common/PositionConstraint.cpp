@@ -22,7 +22,7 @@ namespace NCL {
 
 				if (constraintMass > 0.0f) {
 					float velocityDot = Vector3::Dot(relativeVelocity, offsetDir);
-					float biasFactor = 0.1f;
+					float biasFactor = 0.01f;
 					float bias = -(biasFactor / dt) * offset;
 
 					float lambda = -(velocityDot + bias) / constraintMass;
