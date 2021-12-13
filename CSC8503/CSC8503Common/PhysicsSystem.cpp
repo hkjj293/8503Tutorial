@@ -239,11 +239,13 @@ void PhysicsSystem::ImpulseResolveCollision(GameObject& a, GameObject& b, Collis
 	Vector3 angVelocityA = Vector3::Cross(physA->GetAngularVelocity(), relativeA);
 	Vector3 angVelocityB = Vector3::Cross(physB->GetAngularVelocity(), relativeB);
 
+	Debug::DrawLine(transformB.GetPosition(), transformB.GetPosition() + angVelocityB, Vector4(1, 0, 0, 1), 0.1f);
+
 	Vector3 fullVelocityA = physA->GetLinearVelocity() + angVelocityA;
 	Vector3 fullVelocityB = physB->GetLinearVelocity() + angVelocityB;
 
 	Vector3 contactVelocity = (fullVelocityB - fullVelocityA);
-
+	Debug::DrawLine(transformB.GetPosition(), transformB.GetPosition() + contactVelocity, Vector4(0, 0, 1, 1), 0.1f);
 	float impulseForce = Vector3::Dot(contactVelocity, p.normal);
 
 	Vector3 inertiaA = Vector3::Cross(physA->GetInertiaTensor() * Vector3::Cross(relativeA, p.normal), relativeA);
@@ -254,16 +256,18 @@ void PhysicsSystem::ImpulseResolveCollision(GameObject& a, GameObject& b, Collis
 	float cRestitution = physA->GetElasticity() * physB->GetElasticity(); // disperse some kinectic energy
 
 	float j = (-(1.0f + cRestitution) * impulseForce) / (totalMass + angularEffect);
-
 	Vector3 fullImpulse = p.normal * j;
+
+	//Vector3 friction = contactVelocity.Normalised() * j;
+	Debug::DrawLine(transformB.GetPosition(), transformB.GetPosition() + (fullImpulse + contactVelocity.Normalised() * Vector3::Dot(fullImpulse, contactVelocity.Normalised())) *20, Vector4(0, 1, 0, 1), 0.1f);
+	physA->ApplyLinearImpulse(-fullImpulse);
+	physB->ApplyLinearImpulse(fullImpulse);
+		//friction = contactVelocity.Normalised() * 0.1 * j;
 
 	//physA->SetLinearVelocity(physA->GetLinearVelocity() + angVelocityA);
 	//physB->SetLinearVelocity(physB->GetLinearVelocity() + angVelocityB);
-	physA->ApplyLinearImpulse(-fullImpulse);
-	physB->ApplyLinearImpulse(fullImpulse);
-
-	physA->ApplyAngularImpulse(Vector3::Cross(relativeA, -fullImpulse));
-	physB->ApplyAngularImpulse(Vector3::Cross(relativeB, fullImpulse));
+	//physA->ApplyAngularImpulse(Vector3::Cross(relativeA, -fullImpulse));
+	//physB->ApplyAngularImpulse(Vector3::Cross(relativeB, fullImpulse));
 
 }
 
