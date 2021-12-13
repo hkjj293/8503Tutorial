@@ -85,7 +85,7 @@ void TutorialGame::UpdateGame(float dt) {
 	//CheckIfObjectSee();
 	SelectObject();
 	MoveSelectedObject();
-	Sleep(1);
+	//Sleep(1);
 	physics->Update(dt);
 	
 	
@@ -254,10 +254,10 @@ void TutorialGame::InitWorld() {
 	world->ClearAndErase();
 	physics->Clear();
 
-	InitMixedGridWorld(5, 5, 3.5f, 3.5f);
-	InitGameExamples();
+	//InitMixedGridWorld(5, 5, 3.5f, 3.5f);
+	//InitGameExamples();
 	InitDefaultFloor();
-	BridgeConstraintTest();
+	//BridgeConstraintTest();
 }
 
 void TutorialGame::BridgeConstraintTest() {
@@ -294,11 +294,12 @@ GameObject* TutorialGame::AddFloorToWorld(const Vector3& position) {
 	GameObject* floor = new GameObject();
 	floor->SetLayer(8);
 	Vector3 floorSize	= Vector3(100, 2, 100);
-	AABBVolume* volume	= new AABBVolume(floorSize);
+	OBBVolume* volume	= new OBBVolume(floorSize);
 	floor->SetBoundingVolume((CollisionVolume*)volume);
 	floor->GetTransform()
 		.SetScale(floorSize * 2)
-		.SetPosition(position);
+		.SetPosition(position)
+		.SetOrientation(Quaternion(Matrix4::Rotation(5, Vector3(0,0,1))));
 
 	floor->SetRenderObject(new RenderObject(&floor->GetTransform(), cubeMesh, basicTex, basicShader));
 	floor->SetPhysicsObject(new PhysicsObject(&floor->GetTransform(), floor->GetBoundingVolume()));

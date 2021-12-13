@@ -17,7 +17,7 @@ namespace NCL {
 				func		= someFunc;
 				funcData	= someData;
 			}
-			virtual void Update() {
+			virtual void Update(float dt) {
 				if (funcData != nullptr) {
 					func(funcData);
 				}

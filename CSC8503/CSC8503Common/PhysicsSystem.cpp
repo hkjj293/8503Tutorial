@@ -257,11 +257,14 @@ void PhysicsSystem::ImpulseResolveCollision(GameObject& a, GameObject& b, Collis
 
 	Vector3 fullImpulse = p.normal * j;
 
+	//physA->SetLinearVelocity(physA->GetLinearVelocity() + angVelocityA);
+	//physB->SetLinearVelocity(physB->GetLinearVelocity() + angVelocityB);
 	physA->ApplyLinearImpulse(-fullImpulse);
 	physB->ApplyLinearImpulse(fullImpulse);
 
 	physA->ApplyAngularImpulse(Vector3::Cross(relativeA, -fullImpulse));
 	physB->ApplyAngularImpulse(Vector3::Cross(relativeB, fullImpulse));
+
 }
 
 /*
@@ -287,7 +290,7 @@ void PhysicsSystem::BroadPhase() {
 		Vector3 pos = (*i)->GetTransform().GetPosition();
 		tree.Insert(*i, pos, halfSizes);
 	}
-	//tree.DebugDraw();
+	tree.DebugDraw();
 	tree.OperateOnContents(
 		[&](std::list <QuadTreeEntry <GameObject*>>& data) {
 			CollisionDetection::CollisionInfo info;
