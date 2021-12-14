@@ -55,6 +55,22 @@ namespace NCL {
 				return elasticity;
 			}
 
+			void SetFriction(float friction) {
+				this->friction = friction;
+			}
+
+			float GetFriction() const {
+				return friction;
+			}
+
+			void SetResolve(bool resolve) {
+				this->isResolve = resolve;
+			}
+
+			bool IsResolve() const {
+				return isResolve;
+			}
+
 			void SetInverseMass(float invMass) {
 				inverseMass = invMass;
 			}
@@ -99,6 +115,8 @@ namespace NCL {
 			float inverseMass;
 			float elasticity;
 			float friction;
+
+			bool isResolve;
 
 			//linear stuff
 			Vector3 linearVelocity;

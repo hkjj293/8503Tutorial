@@ -85,6 +85,9 @@ void TutorialGame::UpdateGame(float dt) {
 	//CheckIfObjectSee();
 	SelectObject();
 	MoveSelectedObject();
+	if (dt < 0.01f) {
+		Sleep(1);
+	}
 	//Sleep(1);
 	physics->Update(dt);
 	
@@ -254,10 +257,10 @@ void TutorialGame::InitWorld() {
 	world->ClearAndErase();
 	physics->Clear();
 
-	//InitMixedGridWorld(5, 5, 3.5f, 3.5f);
-	//InitGameExamples();
+	InitMixedGridWorld(5, 5, 3.5f, 3.5f);
+	InitGameExamples();
 	InitDefaultFloor();
-	//BridgeConstraintTest();
+	BridgeConstraintTest();
 }
 
 void TutorialGame::BridgeConstraintTest() {
@@ -299,7 +302,7 @@ GameObject* TutorialGame::AddFloorToWorld(const Vector3& position) {
 	floor->GetTransform()
 		.SetScale(floorSize * 2)
 		.SetPosition(position)
-		.SetOrientation(Quaternion(Matrix4::Rotation(5, Vector3(0,0,1))));
+		.SetOrientation(Quaternion(Matrix4::Rotation(0, Vector3(0,0,1))));
 
 	floor->SetRenderObject(new RenderObject(&floor->GetTransform(), cubeMesh, basicTex, basicShader));
 	floor->SetPhysicsObject(new PhysicsObject(&floor->GetTransform(), floor->GetBoundingVolume()));
@@ -334,8 +337,8 @@ GameObject* TutorialGame::AddSphereToWorld(const Vector3& position, float radius
 	sphere->SetRenderObject(new RenderObject(&sphere->GetTransform(), sphereMesh, basicTex, basicShader));
 	sphere->SetPhysicsObject(new PhysicsObject(&sphere->GetTransform(), sphere->GetBoundingVolume()));
 
-	sphere->GetPhysicsObject()->SetLinearResistance(Vector3(0.5, 0.5, 0.5));
-	sphere->GetPhysicsObject()->SetAngularResistance(Vector3(0.2, 0.2, 0.2));
+	sphere->GetPhysicsObject()->SetLinearResistance(Vector3(0.2, 0.2, 0.2));
+	sphere->GetPhysicsObject()->SetAngularResistance(Vector3(0.1, 0.1, 0.1));
 	sphere->GetPhysicsObject()->SetInverseMass(inverseMass); 
 	sphere->GetPhysicsObject()->InitSphereInertia(volume->GetHollow(),volume->GetInnerRadius());
 
@@ -451,7 +454,7 @@ GameObject* TutorialGame::AddPlayerToWorld(const Vector3& position) {
 	GameObject* character = new GameObject();
 	character->SetLayer(1);
 
-	AABBVolume* volume = new AABBVolume(Vector3(0.3f, 0.85f, 0.3f) * meshSize);
+	SphereVolume* volume = new SphereVolume(meshSize);
 
 	character->SetBoundingVolume((CollisionVolume*)volume);
 
@@ -484,7 +487,7 @@ GameObject* TutorialGame::AddEnemyToWorld(const Vector3& position) {
 	GameObject* character = new GameObject();
 	character->SetLayer(2);
 
-	AABBVolume* volume = new AABBVolume(Vector3(0.3f, 0.9f, 0.3f) * meshSize);
+	SphereVolume* volume = new SphereVolume(meshSize);
 	character->SetBoundingVolume((CollisionVolume*)volume);
 
 	character->GetTransform()
@@ -566,9 +569,8 @@ bool TutorialGame::SelectObject() {
 			if (world->Raycast(ray, closestCollision, true, nullptr, mask)) {
 				selectionObject = (GameObject*)closestCollision.node;
 				selectionObject->GetRenderObject()->SetColour(Vector4(0, 1, 0, 1));
-
+				selectionObject->GetPhysicsObject()->SetLinearVelocity(Vector3(Window::GetMouse()->GetRelativePosition().x * 10, 0, Window::GetMouse()->GetRelativePosition().y * 10));
 				Debug::DrawLine(pos , closestCollision.collidedAt, colour);
-
 				return true;
 			}
 			else {
@@ -613,11 +615,12 @@ line - after the third, they'll be able to twist under torque aswell.
 void TutorialGame::MoveSelectedObject() {
 	renderer->DrawString("Click Force:" + std::to_string(forceMagnitude), Vector2(10, 20));
 	forceMagnitude += Window::GetMouse()->GetWheelMovement();
-
 	if (!selectionObject){
 		return;
 	}
-
+	/*if (inSelectionMode) {
+		selectionObject->GetTransform().SetOrientation(Quaternion(Matrix4::Rotation(Window::GetMouse()->GetAbsolutePosition().x/100,Vector3(1,0,0))* Matrix4::Rotation(Window::GetMouse()->GetAbsolutePosition().y/100, Vector3(0, 0, 1))));
+	}*/
 	if (Window::GetMouse()->ButtonPressed(NCL::MouseButtons::RIGHT)) {
 		Ray ray = CollisionDetection::BuildRayFromMouse(*world->GetMainCamera());
 		RayCollision closestCollision;
@@ -627,6 +630,7 @@ void TutorialGame::MoveSelectedObject() {
 			}
 		}
 	}
+
 }
 
 void TutorialGame::CheckIfObjectSee() {

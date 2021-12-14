@@ -514,7 +514,7 @@ bool CollisionDetection::AABBSphereIntersection(const AABBVolume& volumeA, const
 		float penetration = volumeB.GetRadius() - distance;
 
 		Vector3 localA = closestPointOnBox;
-		Vector3 localB = collisionNormal * volumeB.GetRadius();
+		Vector3 localB = -collisionNormal * volumeB.GetRadius();
 
 		collisionInfo.AddContactPoint(localA, localB, collisionNormal, penetration);
 		return true;
@@ -540,7 +540,7 @@ bool CollisionDetection::OBBSphereIntersection(const OBBVolume& volumeA, const T
 	CollisionInfo info;
 
 	if (AABBSphereIntersection(temp, Transform(), volumeB, t, info)) {
-		collisionInfo.AddContactPoint(info.point.localA, info.point.localB, transform * info.point.normal, info.point.penetration);
+		collisionInfo.AddContactPoint(info.point.localA, transform * info.point.localB, transform * info.point.normal, info.point.penetration);
 		return true;
 	}
 	return false;
