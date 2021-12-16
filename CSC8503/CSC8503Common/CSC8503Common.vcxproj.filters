@@ -108,6 +108,15 @@
     <ClInclude Include="OrientationConstraint.h">
       <Filter>Physics</Filter>
     </ClInclude>
+    <ClInclude Include="BehavierNode.h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="SpringConstraint.h">
+      <Filter>Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Octree.h">
+      <Filter>AI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameWorld.cpp">
@@ -159,6 +168,9 @@
       <Filter>Physics</Filter>
     </ClCompile>
     <ClCompile Include="OrientationConstraint.cpp">
+      <Filter>Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="SpringConstraint.cpp">
       <Filter>Physics</Filter>
     </ClCompile>
   </ItemGroup>

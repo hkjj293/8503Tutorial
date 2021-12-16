@@ -6,6 +6,7 @@
 #include "RenderObject.h"
 
 #include <vector>
+#include <functional>
 
 using std::vector;
 
@@ -16,6 +17,8 @@ namespace NCL {
 		public:
 			GameObject(string name = "");
 			~GameObject();
+
+			void UpdateGlobalTransform(Transform& oldParent);
 
 			void SetBoundingVolume(CollisionVolume* vol) {
 				boundingVolume = vol;
@@ -81,6 +84,48 @@ namespace NCL {
 				return worldID;
 			}
 
+			GameObject* SetParent(GameObject* p) {
+				parent = p;
+				return parent;
+			}
+
+			GameObject* GetParent() {
+				return parent;
+			}
+
+			GameObject* Pop();
+
+			GameObject* AddChild(GameObject* newChild);
+			GameObject* PopChild(string name);
+			GameObject* PopChild(int id);
+			GameObject* PopChild(GameObject* ptr);
+			GameObject* FindChild(string name);
+			GameObject* FindChild(int id);
+			GameObject* FindChild(GameObject* ptr);
+			std::vector<GameObject*> GetChildren() {
+				return children;
+			}
+			std::vector<GameObject*>::iterator GetChilrenBegin() {
+				return children.begin();
+			}
+			std::vector<GameObject*>::iterator GetChilrenEnd() {
+				return children.end();
+			}
+			int GetChildrenSize() const {
+				return children.size();
+			}
+
+			void OnSpreadChild(std::function<void(GameObject*)> f) {
+				if (GetChildrenSize() > 0) {
+					for(GameObject* i : children) {
+						i->OnSpreadChild(f);
+						f(i);
+					}
+				}
+			}
+
+
+
 		protected:
 			Transform			transform;
 
@@ -94,6 +139,8 @@ namespace NCL {
 			string	name;
 
 			Vector3 broadphaseAABB;
+			GameObject* parent;
+			std::vector<GameObject*> children;
 		};
 	}
 }

@@ -16,12 +16,13 @@ namespace NCL {
 			STATEOBJ = 128
 		};
 
-		class TutorialGame		{
+		class MainGame		{
 		public:
-			TutorialGame();
-			~TutorialGame();
+			MainGame();
+			~MainGame();
 
 			virtual void UpdateGame(float dt);
+			bool IsEnd();
 
 		protected:
 			void InitialiseAssets();
@@ -42,10 +43,15 @@ namespace NCL {
 			bool SelectObject();
 			void MoveSelectedObject();
 			void CheckIfObjectSee();
+			void WorldFloorMovement();
 			void DebugObjectMovement();
-			void LockedObjectMovement();
+			void UpdateErasables();
 
-			GameObject* AddFloorToWorld(const Vector3& position);
+			void PauseAction();
+			void LockedObjectMovement();
+			void LockCameraMovment(float dt);
+
+			GameObject* AddFloorToWorld(const Vector3& position, const Vector3& floorSize);
 			GameObject* AddSphereToWorld(const Vector3& position, float radius, float inverseMass = 10.0f, bool hollow = false, float innerRadius = 0.0f);
 			GameObject* AddCubeToWorld(const Vector3& position, Vector3 dimensions, float inverseMass = 10.0f);
 			
@@ -82,13 +88,17 @@ namespace NCL {
 			OGLMesh*	enemyMesh	= nullptr;
 			OGLMesh*	bonusMesh	= nullptr;
 
-			//Coursework Additional functionality	
+			//Game Feature
+			GameObject* worldFloor = nullptr;
 			GameObject* lockedObject	= nullptr;
 			Vector3 lockedOffset		= Vector3(0, 14, 20);
 			void LockCameraToObject(GameObject* o) {
 				lockedObject = o;
 			}
-
+			
+			//System
+			bool isEnd;
+			bool pause;
 		};
 	}
 }

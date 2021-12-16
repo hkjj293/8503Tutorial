@@ -14,6 +14,10 @@ namespace NCL {
 		Maths::Vector3 GetHalfDimensions() const {
 			return halfSizes;
 		}
+
+		virtual float GetMax() const override {
+			return halfSizes.Length();
+		}
 	protected:
 		Maths::Vector3 halfSizes;
 	};

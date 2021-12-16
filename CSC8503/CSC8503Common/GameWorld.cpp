@@ -9,12 +9,14 @@
 using namespace NCL;
 using namespace NCL::CSC8503;
 
-GameWorld::GameWorld()	{
+GameWorld::GameWorld(){
 	mainCamera = new Camera();
 
 	shuffleConstraints	= false;
 	shuffleObjects		= false;
 	worldIDCounter		= 0;
+
+	octTree = new OctTree<GameObject*>(Vector3(50, 50, 50), Vector3(100, 100, 100), 7, 6);
 }
 
 GameWorld::~GameWorld()	{
@@ -35,9 +37,10 @@ void GameWorld::ClearAndErase() {
 	Clear();
 }
 
-void GameWorld::AddGameObject(GameObject* o) {
+GameObject* GameWorld::AddGameObject(GameObject* o) {
 	gameObjects.emplace_back(o);
 	o->SetWorldID(worldIDCounter++);
+	return o;
 }
 
 void GameWorld::RemoveGameObject(GameObject* o, bool andDelete) {
@@ -62,6 +65,8 @@ void GameWorld::OperateOnContents(GameObjectFunc f) {
 }
 
 void GameWorld::UpdateWorld(float dt) {
+
+	ClearEraseList();
 	if (shuffleObjects) {
 		std::random_shuffle(gameObjects.begin(), gameObjects.end());
 	}
@@ -69,35 +74,32 @@ void GameWorld::UpdateWorld(float dt) {
 	if (shuffleConstraints) {
 		std::random_shuffle(constraints.begin(), constraints.end());
 	}
+	
+	CheckObjectsHeight();
 }
 
-bool GameWorld::Raycast(Ray& r, RayCollision& closestCollision, bool closestObject, GameObject* ignore,  unsigned int mask) const {
+bool GameWorld::Raycast(Ray& r, RayCollision& closestCollision, bool closestObject, GameObject* ignore,  unsigned int mask) {
 	//The simplest raycast just goes through each object and sees if there's a collision
 	RayCollision collision;
+	
+	std::vector<GameObject*> list;
 
 	std::set<GameObject*> broadphaseCollisions;
-	int count = 0;
-	QuadTree <GameObject*> tree(Vector2(1024, 1024), 7, 6);
-	for (auto& i : gameObjects) {
-		Vector3 halfSizes;
-		if (!i->GetBroadphaseAABB(halfSizes)) {
-			continue;
-		}
-		Vector3 pos = i->GetTransform().GetPosition();
-		tree.Insert(i, pos, halfSizes);
-	}
-
-	//tree.DebugDraw();
-
-	tree.OperateOnRayCastContents(
+	//octTree->DebugDraw();
+	octTree->OperateOnRayCastContents(
 		r,
-		[&](std::list <QuadTreeEntry <GameObject*>>& data) {
+		[&](std::list <OctTreeEntry <GameObject*>>& data) {
 			for (auto it = data.begin(); it != data.end(); ++it) {
 				broadphaseCollisions.insert(it->object);
 			}
 		});
 
 	for (auto& i : broadphaseCollisions) {
+		list.push_back(i);
+	}
+
+
+	for (auto& i : list) {
 		if (ignore && i == ignore) {
 			continue;
 		}
@@ -131,7 +133,6 @@ bool GameWorld::Raycast(Ray& r, RayCollision& closestCollision, bool closestObje
 	return false;
 }
 
-
 /*
 Constraint Tutorial Stuff
 */
@@ -152,4 +153,77 @@ void GameWorld::GetConstraintIterators(
 	std::vector<Constraint*>::const_iterator& last) const {
 	first	= constraints.begin();
 	last	= constraints.end();
+}
+
+void GameWorld::UpdateOctTree() {
+	//delete octTree;
+	octTree->Clear();
+	//std::cout << "update" << std::endl;
+	GameObjectFunc f = [&](GameObject* o) {
+		Vector3 halfSizes;
+		if (!o->GetBroadphaseAABB(halfSizes)) {
+			return;
+		}
+		Vector3 pos = o->GetTransform().GetPosition();
+		//std::cout << o->GetName() << o->GetWorldID() << std::endl;
+		octTree->Insert(o, pos, halfSizes);
+	};
+
+	for (auto& i : gameObjects) {
+		if(NullptrIfErase(i)){
+			f(i);
+			i->OnSpreadChild(f);
+		}
+	}
+}
+
+void GameWorld::CheckObjectsHeight() {
+	GameObjectFunc f = [&](GameObject* o) {
+		Vector3 pos = o->GetTransform().GetPosition();
+		if (pos.y < -10) {
+			GameObject* temp = o->Pop();
+			if (temp) {
+				eraseList.push_back(temp);
+			}
+			else {
+				GameObject* popout = EraseObject(o);
+				if (popout) {
+					eraseList.push_back(popout);
+				}
+			}
+		}
+	};
+	for (auto& i : gameObjects) {
+		i->OnSpreadChild(f);
+		f(i);
+	}
+}
+
+GameObject* GameWorld::EraseObject(GameObject* obj) {
+	for (auto it = gameObjects.begin(); it != gameObjects.end(); ++it) {
+		if ((*it) == obj) {
+			gameObjects.erase(it);
+			for (int i = 0; i < obj->GetChildrenSize(); ++i) {
+				AddGameObject(obj->GetChildren()[i])->SetParent(nullptr);
+			}
+			return obj;
+		}
+	}
+	return nullptr;
+}
+
+GameObject* GameWorld::NullptrIfErase(GameObject* obj) {
+	for (auto it = eraseList.begin(); it != eraseList.end(); ++it) {
+		if (*it == obj) {
+			return nullptr;
+		}
+	}
+	return obj;
+}
+
+void GameWorld::ClearEraseList() {
+	for (auto it = eraseList.begin(); it != eraseList.end(); ++it) {
+		delete (*it);
+	}
+	eraseList.clear();
 }

@@ -2,7 +2,7 @@
 #include <vector>
 #include "Ray.h"
 #include "CollisionDetection.h"
-#include "QuadTree.h"
+#include "Octree.h"
 namespace NCL {
 		class Camera;
 		using Maths::Ray;
@@ -21,7 +21,7 @@ namespace NCL {
 			void Clear();
 			void ClearAndErase();
 
-			void AddGameObject(GameObject* o);
+			GameObject* AddGameObject(GameObject* o);
 			void RemoveGameObject(GameObject* o, bool andDelete = false);
 
 			void AddConstraint(Constraint* c);
@@ -39,7 +39,7 @@ namespace NCL {
 				shuffleObjects = state;
 			}
 
-			bool Raycast(Ray& r, RayCollision& closestCollision, bool closestObject = false, GameObject* ignore = nullptr, unsigned int mask = 0xFFFFFFFF) const;
+			bool Raycast(Ray& r, RayCollision& closestCollision, bool closestObject = false, GameObject* ignore = nullptr, unsigned int mask = 0xFFFFFFFF);
 
 			virtual void UpdateWorld(float dt);
 
@@ -53,15 +53,30 @@ namespace NCL {
 				std::vector<Constraint*>::const_iterator& first,
 				std::vector<Constraint*>::const_iterator& last) const;
 
+			void UpdateOctTree();
+			OctTree<GameObject*>* GetOctTree() {
+				return octTree;
+			}
+
+			void CheckObjectsHeight();
+			GameObject* EraseObject(GameObject* obj);
+
+			GameObject* NullptrIfErase(GameObject* obj);
+			void ClearEraseList();
+
 		protected:
 			std::vector<GameObject*> gameObjects;
 			std::vector<Constraint*> constraints;
+
+			std::vector<GameObject*> eraseList;
 
 			Camera* mainCamera;
 
 			bool	shuffleConstraints;
 			bool	shuffleObjects;
 			int		worldIDCounter;
+
+			OctTree<GameObject*>* octTree;
 		};
 	}
 }

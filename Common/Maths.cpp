@@ -7,6 +7,7 @@ Comments and queries to: richard-gordon.davison AT ncl.ac.uk
 https://research.ncl.ac.uk/game/
 */
 #include "Maths.h"
+#include "Plane.h"
 #include "../Common/Vector2.h"
 #include "../Common/Vector3.h"
 
@@ -44,6 +45,58 @@ namespace NCL {
 				Clamp(a.y, mins.y, maxs.y),
 				Clamp(a.z, mins.z, maxs.z)
 			);
+		}
+
+		Vector3 PointProjOnLineSegment(const Vector3& lStart, const Vector3& lEnd, const Vector3& point) {
+			Vector3 v1 = lEnd - lStart;
+			Vector3 p = point - lStart;
+
+			if (v1.Length() == 0) return lStart;
+
+			Vector3 dir = v1.Normalised();
+			float l = Vector3::Dot(p, dir);
+			Vector3 closestPoint = (dir * l) + lStart;
+			if (l >= v1.Length()) {
+				closestPoint = lEnd;
+			}
+			else if (l <= 0) {
+				closestPoint = lStart;
+			}
+			return closestPoint;
+		}
+
+		Vector3 LineSegClosestPointAOnB(const Vector3& lStartA, const Vector3& lEndA, const Vector3& lStartB, const Vector3& lEndB) {
+			Vector3 v1 = lEndA - lStartA;
+			Vector3 v2 = lEndB - lStartB;
+
+			if (abs(Vector3::Dot(v1.Normalised(), v2.Normalised())) == 1.0f) {
+				return (v2 * 0.5) + lStartB;
+			}
+
+			if (v2.Length() == 0) {
+				return lStartB;
+			}
+
+			if (v1.Length() == 0) {
+				Vector3 point = PointProjOnLineSegment(lStartB, lEndB, lStartA);
+				return point;
+			}
+
+			Plane projPlane(v1.Normalised(), Vector3::Dot(-lStartA, v1.Normalised()));
+			Vector3 topBProj = projPlane.ProjectPointOntoPlane(lEndB);
+			Vector3 bottomBProj = projPlane.ProjectPointOntoPlane(lStartB);
+
+			Vector3 closestPointOnPlane = PointProjOnLineSegment(bottomBProj, topBProj, lStartA);
+			float ratio = (closestPointOnPlane - bottomBProj).Length() / (topBProj - bottomBProj).Length();
+
+			Vector3 closestPointAOnB = (v2 * ratio) + lStartB;
+			return closestPointAOnB;
+		}
+
+		Vector3 LineSegClosestPointAOnB(const Vector3& lStartA, const Vector3& lEndA, const Vector3& lStartB, const Vector3& lEndB, Vector3& distance) {
+			Vector3 closestPointAOnB = LineSegClosestPointAOnB(lStartA, lEndA, lStartB, lEndB);
+			distance = PointProjOnLineSegment(lStartA, lEndA, closestPointAOnB) - closestPointAOnB;
+			return closestPointAOnB;
 		}
 	}
 }

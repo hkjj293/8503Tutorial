@@ -9,6 +9,7 @@ PhysicsObject::PhysicsObject(Transform* parentTransform, const CollisionVolume* 
 	volume		= parentVolume;
 
 	isResolve = true;
+	mask = 0xFFFFFFFF;
 
 	inverseMass = 1.0f;
 	elasticity	= 0.8f;

@@ -9,6 +9,7 @@
 #include "Debug.h"
 
 #include <functional>
+#include "Octree.h"
 using namespace NCL;
 using namespace CSC8503;
 
@@ -20,7 +21,8 @@ and the forces that are added to objects to change those positions
 */
 
 PhysicsSystem::PhysicsSystem(GameWorld& g) : gameWorld(g)	{
-	applyGravity	= false;
+	pause = false;
+	applyGravity	= true;
 	useBroadPhase	= false;	
 	dTOffset		= 0.0f;
 	globalDamping	= 0.995f;
@@ -69,74 +71,77 @@ int realHZ		= idealHZ;
 float realDT	= idealDT;
 
 void PhysicsSystem::Update(float dt) {	
-	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::B)) {
-		useBroadPhase = !useBroadPhase;
-		std::cout << "Setting broadphase to " << useBroadPhase << std::endl;
-	}
-	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::I)) {
-		constraintIterationCount--;
-		std::cout << "Setting constraint iterations to " << constraintIterationCount << std::endl;
-	}
-	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::O)) {
-		constraintIterationCount++;
-		std::cout << "Setting constraint iterations to " << constraintIterationCount << std::endl;
-	}
+	if (!pause) {
+		/*if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::B)) {
+			useBroadPhase = !useBroadPhase;
+			std::cout << "Setting broadphase to " << useBroadPhase << std::endl;
+		}
+		if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::I)) {
+			constraintIterationCount--;
+			std::cout << "Setting constraint iterations to " << constraintIterationCount << std::endl;
+		}
+		if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::O)) {
+			constraintIterationCount++;
+			std::cout << "Setting constraint iterations to " << constraintIterationCount << std::endl;
+		}*/
 
-	dTOffset += dt; //We accumulate time delta here - there might be remainders from previous frame!
+		dTOffset += dt; //We accumulate time delta here - there might be remainders from previous frame!
 
-	GameTimer t;
-	t.GetTimeDeltaSeconds();
+		GameTimer t;
+		t.GetTimeDeltaSeconds();
 
-	if (useBroadPhase) {
-		UpdateObjectAABBs();
-	}
+		while (dTOffset >= realDT) {
+			IntegrateAccel(realDT); //Update accelerations from external forces //spread
 
-	while(dTOffset >= realDT) {
-		IntegrateAccel(realDT); //Update accelerations from external forces
-		if (useBroadPhase) {
+			//if (useBroadPhase) {
+			UpdateObjectAABBs();
+			gameWorld.UpdateOctTree();
 			BroadPhase();
 			NarrowPhase();
+			//}
+			//else {
+				//BasicCollisionDetection();
+			//}
+		
+			//This is our simple iterative solver - 
+			//we just run things multiple times, slowly moving things forward
+			//and then rechecking that the constraints have been met		
+			float constraintDt = realDT / (float)constraintIterationCount;
+			for (int i = 0; i < constraintIterationCount; ++i) {
+				UpdateConstraints(constraintDt);
+			}
+			IntegrateVelocity(realDT); //update positions from new velocity changes //spread
+
+			dTOffset -= realDT;
 		}
-		else {
-			BasicCollisionDetection();
+
+		//std::cout << "DFdfsfdfsdfsdjfhjsdhfkdfhskfhsdf" << std::endl;
+
+		ClearForces();	//Once we've finished with the forces, reset them to zero //spread
+
+		UpdateCollisionList(); //Remove any old collisions
+
+		t.Tick();
+		float updateTime = t.GetTimeDeltaSeconds();
+
+		//Uh oh, physics is taking too long...
+		if (updateTime > realDT) {
+			realHZ /= 2;
+			realDT *= 2;
+			std::cout << "Dropping iteration count due to long physics time...(now " << realHZ << ")\n";
 		}
+		else if (dt * 2 < realDT) { //we have plenty of room to increase iteration count!
+			int temp = realHZ;
+			realHZ *= 2;
+			realDT /= 2;
 
-		//This is our simple iterative solver - 
-		//we just run things multiple times, slowly moving things forward
-		//and then rechecking that the constraints have been met		
-		float constraintDt = realDT /  (float)constraintIterationCount;
-		for (int i = 0; i < constraintIterationCount; ++i) {
-			UpdateConstraints(constraintDt);	
-		}
-		IntegrateVelocity(realDT); //update positions from new velocity changes
-
-		dTOffset -= realDT;
-	}
-
-	ClearForces();	//Once we've finished with the forces, reset them to zero
-
-	UpdateCollisionList(); //Remove any old collisions
-
-	t.Tick();
-	float updateTime = t.GetTimeDeltaSeconds();
-
-	//Uh oh, physics is taking too long...
-	if (updateTime > realDT) {
-		realHZ /= 2;
-		realDT *= 2;
-		std::cout << "Dropping iteration count due to long physics time...(now " << realHZ << ")\n";
-	}
-	else if(dt*2 < realDT) { //we have plenty of room to increase iteration count!
-		int temp = realHZ;
-		realHZ *= 2;
-		realDT /= 2;
-
-		if (realHZ > idealHZ) {
-			realHZ = idealHZ;
-			realDT = idealDT;
-		}
-		if (temp != realHZ) {
-			std::cout << "Raising iteration count due to short physics time...(now " << realHZ << ")\n";
+			if (realHZ > idealHZ) {
+				realHZ = idealHZ;
+				realDT = idealDT;
+			}
+			if (temp != realHZ) {
+				std::cout << "Raising iteration count due to short physics time...(now " << realHZ << ")\n";
+			}
 		}
 	}
 }
@@ -171,11 +176,15 @@ void PhysicsSystem::UpdateCollisionList() {
 }
 
 void PhysicsSystem::UpdateObjectAABBs() {
-	gameWorld.OperateOnContents(
-		[](GameObject* g) {
+	std::vector<GameObject*>::iterator begin;
+	std::vector<GameObject*>::iterator end;
+	gameWorld.GetObjectIterators(begin, end);
+	for (auto it = begin; it != end; ++it) {
+		(*it)->UpdateBroadphaseAABB();
+		(*it)->OnSpreadChild([](GameObject* g) {
 			g->UpdateBroadphaseAABB();
-		}
-	);
+		});
+	}
 }
 
 /*
@@ -265,9 +274,10 @@ void PhysicsSystem::ImpulseResolveCollision(GameObject& a, GameObject& b, Collis
 
 	float cRestitution = physA->GetElasticity() * physB->GetElasticity(); // disperse some kinectic energy
 	float cFriction = physA->GetFriction() * physB->GetFriction();
+	//std::cout << cFriction << std::endl;
 
 	float j = (-(1.0f + cRestitution) * impulseForce) / (totalMass + angularEffect);
-	float jt = (-(1.0f + cFriction) * columbForce) / (totalMass + angularEffectFriction);
+	float jt = (-(cFriction) * columbForce) / (totalMass + angularEffectFriction);
 	Vector3 fullImpulse = normal * j;
 
 	if (j > jt) {
@@ -297,32 +307,32 @@ compare the collisions that we absolutely need to.
 
 void PhysicsSystem::BroadPhase() {
 	broadphaseCollisions.clear();
-	QuadTree <GameObject*> tree(Vector2(1024, 1024), 7, 6);
 	std::vector <GameObject*>::const_iterator first;
 	std::vector <GameObject*>::const_iterator last;
 	gameWorld.GetObjectIterators(first, last);
-	for (auto i = first; i != last; ++i) {
-		Vector3 halfSizes;
-		if (!(*i)->GetBroadphaseAABB(halfSizes)) {
-			continue;
-		}
-		Vector3 pos = (*i)->GetTransform().GetPosition();
-		tree.Insert(*i, pos, halfSizes);
-	}
-	tree.DebugDraw();
-	tree.OperateOnContents(
-		[&](std::list <QuadTreeEntry <GameObject*>>& data) {
+	gameWorld.GetOctTree()->OperateOnContents(
+		[&](std::list <OctTreeEntry <GameObject*>>& data) {
 			CollisionDetection::CollisionInfo info;
 			for (auto i = data.begin(); i != data.end(); ++i) {
+				//std::cout << (*i).object->GetName() << (*i).object->GetWorldID() <<std::endl;
 				for (auto j = std::next(i); j != data.end(); ++j) {
 					//is this pair of items already in the collision set -
 					//if the same pair is in another quadtree node together etc
+					bool one = (*i).object->GetPhysicsObject()->GetMask() & (*j).object->GetLayer();
+					bool two = (*j).object->GetPhysicsObject()->GetMask() & (*i).object->GetLayer();
+					//std::cout << one << "-" << two << "|" << (*j).object->GetLayer() << "-" << (*i).object->GetLayer() << std::endl;
+					if (!(one && two)) {
+						continue;
+					}
 					info.a = min((*i).object, (*j).object);
 					info.b = max((*i).object, (*j).object);
 					broadphaseCollisions.insert(info);
 				}
 			}
-	 });
+			//std::cout << "--------------------------------------" << std::endl;
+		});
+	//std::cout << "==========================================" << std::endl;
+	//gameWorld.GetOctTree()->DebugDraw();
 }
 
 /*
@@ -357,10 +367,10 @@ void PhysicsSystem::IntegrateAccel(float dt) {
 	std::vector<GameObject*>::const_iterator last;
 	gameWorld.GetObjectIterators(first, last);
 
-	for (auto i = first; i != last; ++i) {
-		PhysicsObject* object = (*i)->GetPhysicsObject();
+	GameObjectFunc f = [&](GameObject* g) {
+		PhysicsObject* object = g->GetPhysicsObject();
 		if (object == nullptr) {
-			continue;
+			return;
 		}
 		float inverseMass = object->GetInverseMass();
 
@@ -381,6 +391,11 @@ void PhysicsSystem::IntegrateAccel(float dt) {
 
 		angVel += angAccel * dt;
 		object->SetAngularVelocity(angVel);
+	};
+
+	for (auto i = first; i != last; ++i) {
+		f(*i);
+		(*i)->OnSpreadChild(f);
 	}
 }
 /*
@@ -394,13 +409,13 @@ void PhysicsSystem::IntegrateVelocity(float dt) {
 	std::vector<GameObject*>::const_iterator last;
 	gameWorld.GetObjectIterators(first, last);
 
-	for (auto i = first; i != last; ++i) {
-		PhysicsObject* object = (*i)->GetPhysicsObject();
+	GameObjectFunc f = [&](GameObject* g) {
+		PhysicsObject* object = g->GetPhysicsObject();
 		if (object == nullptr) {
-			continue;
+			return;
 		}
 
-		Transform& transform = (*i)->GetTransform();
+		Transform& transform = g->GetTransform();
 
 		Vector3 position = transform.GetPosition();
 		Vector3 linearVel = object->GetLinearVelocity();
@@ -425,6 +440,13 @@ void PhysicsSystem::IntegrateVelocity(float dt) {
 
 		angVel = angVel * frameAngularDamping;
 		object->SetAngularVelocity(angVel);
+	};
+
+	for (auto i = first; i != last; ++i) {
+		Transform old = (*i)->GetTransform();
+		f(*i);
+		(*i)->UpdateGlobalTransform(old);
+		(*i)->OnSpreadChild(f);
 	}
 }
 
@@ -434,11 +456,20 @@ clear out any accumulated forces, ready to receive new
 ones in the next 'game' frame.
 */
 void PhysicsSystem::ClearForces() {
-	gameWorld.OperateOnContents(
-		[](GameObject* o) {
+	std::vector<GameObject*>::const_iterator first;
+	std::vector<GameObject*>::const_iterator last;
+	gameWorld.GetObjectIterators(first, last);
+	//std::cout << "Update" << std::endl;
+	GameObjectFunc f = [](GameObject* o) {
+		if (o->GetPhysicsObject()) {
 			o->GetPhysicsObject()->ClearForces();
 		}
-	);
+	};
+
+	for (auto i = first; i != last; ++i) {
+		f(*i);
+		(*i)->OnSpreadChild(f);
+	}
 }
 
 

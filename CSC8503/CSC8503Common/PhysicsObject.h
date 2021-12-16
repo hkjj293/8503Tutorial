@@ -71,6 +71,14 @@ namespace NCL {
 				return isResolve;
 			}
 
+			void SetMask(int mask) {
+				this->mask = mask;
+			}
+
+			int GetMask() const {
+				return mask;
+			}
+
 			void SetInverseMass(float invMass) {
 				inverseMass = invMass;
 			}
@@ -117,6 +125,7 @@ namespace NCL {
 			float friction;
 
 			bool isResolve;
+			int mask;
 
 			//linear stuff
 			Vector3 linearVelocity;

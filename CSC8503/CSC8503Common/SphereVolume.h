@@ -22,6 +22,9 @@ namespace NCL {
 		float GetInnerRadius() const {
 			return innerRadius;
 		}
+		virtual float GetMax() const override {
+			return radius;
+		}
 	protected:
 		float radius;
 

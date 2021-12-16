@@ -21,6 +21,10 @@ namespace NCL {
             return halfHeight;
         }
 
+        virtual float GetMax() const override {
+            return halfHeight;
+        }
+
     protected:
         float radius;
         float halfHeight;

@@ -42,6 +42,9 @@ namespace NCL {
 		}
 
 		Vector3 Clamp(const Vector3& a, const Vector3&mins, const Vector3& maxs);
+		Vector3 PointProjOnLineSegment(const Vector3& lStart, const Vector3& lEnd, const Vector3& point);
+		Vector3 LineSegClosestPointAOnB(const Vector3& lStartA, const Vector3& lEndA, const Vector3& lStartB, const Vector3& lEndB);
+		Vector3 LineSegClosestPointAOnB(const Vector3& lStartA, const Vector3& lEndA, const Vector3& lStartB, const Vector3& lEndB, Vector3& distance);
 
 		template<class T>
 		inline T Lerp(const T& a, const T&b, float by) {

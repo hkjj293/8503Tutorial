@@ -17,6 +17,9 @@ namespace NCL {
 			return halfSizes;
 		}
 
+		virtual float GetMax() const override {
+			return halfSizes.Length();
+		}
 	protected:
 		Vector3 halfSizes;
 	};

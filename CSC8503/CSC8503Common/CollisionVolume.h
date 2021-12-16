@@ -17,6 +17,7 @@ namespace NCL {
 			type = VolumeType::Invalid;
 		}
 		~CollisionVolume() {}
+		virtual float GetMax() const { return 0; };
 
 		VolumeType type;
 	};
