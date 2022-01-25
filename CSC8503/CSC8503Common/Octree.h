@@ -93,6 +93,14 @@ namespace NCL {
 				}
 			}
 
+			void SetPos(Vector3 p) {
+				this->position = p;
+			}
+
+			void SetSize(Vector3 s) {
+				this->size = s;
+			}
+
 			void DebugDraw() {
 				if (children) {
 					for (int i = 0; i < 8; ++i) {
@@ -190,6 +198,22 @@ namespace NCL {
 				this->maxSize = maxSize;
 			}
 			~OctTree() {
+			}
+
+			void SetPos(Vector3 p) {
+				root.SetPos(p);
+			}
+
+			void SetSize(Vector3 s) {
+				root.SetSize(s);
+			}
+
+			void SetDepth(float d) {
+				maxDepth = d;
+			}
+
+			void SetMaxObj(float o) {
+				maxSize = o;
 			}
 
 			void Insert(T object, const Vector3& pos, const Vector3& size) {

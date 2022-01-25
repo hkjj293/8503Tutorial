@@ -75,7 +75,7 @@ namespace NCL {
 				this->mask = mask;
 			}
 
-			int GetMask() const {
+			int GetMask() {
 				return mask;
 			}
 

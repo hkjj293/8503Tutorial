@@ -3,15 +3,32 @@
 
 using namespace NCL::CSC8503;
 
-GameObject::GameObject(string objectName)	{
+GameObject::GameObject(string objectName) {
+	name = objectName;
+	this->updateFunc = [&](float dt, GameObject* a)-> void {};
+	layer = 0;
+	worldID = -1;
+	isActive = true;
+	parent = nullptr;
+	boundingVolume = nullptr;
+	physicsObject = nullptr;
+	renderObject = nullptr;
+	parent = nullptr;
+	offset = Vector3();
+}
+
+GameObject::GameObject(string objectName, std::function<void(float dt, GameObject* a)> updatefunc)	{
+	this->updateFunc = updateFunc;
 	name			= objectName;
 	layer			= 0;
 	worldID			= -1;
 	isActive		= true;
+	parent = nullptr;
 	boundingVolume	= nullptr;
 	physicsObject	= nullptr;
 	renderObject	= nullptr;
 	parent          = nullptr;
+	offset = Vector3();
 
 }
 
@@ -21,19 +38,29 @@ GameObject::~GameObject()	{
 	delete renderObject;
 }
 
-void GameObject::UpdateGlobalTransform(Transform& oldParent) {
-	Transform oldTrans = transform;
+void GameObject::UpdateGlobalTransform() {
 	if (parent) {
-		Matrix4 oldGlobal = transform.GetMatrix();
-		Matrix4 local = oldParent.GetMatrix().Inverse() * transform.GetMatrix();
-		Matrix4 newGlobal = local * parent->GetTransform().GetMatrix();
+		Matrix4 newGlobal = parent->GetTransform().GetMatrix() * localTransform.GetMatrix();
+		//Matrix4 localrotate = 
+		transform.SetOrientation(parent->GetTransform().GetOrientation() * localTransform.GetOrientation());
 		transform.SetPosition(newGlobal.GetPositionVector());
-		transform.SetOrientation(Quaternion(newGlobal));
-		transform.SetScale(parent->GetTransform().GetScale() * oldTrans.GetScale());
-		transform.UpdateMatrix();
+		transform.SetScale(localTransform.GetScale());
+		/*if (parent->GetName() == "floor") {
+			std::cout << transform.GetScale() << transform.GetPosition() << transform.GetOrientation() << parent->GetTransform().GetScale() << parent->GetTransform().GetPosition() << parent->GetTransform().GetOrientation() << std::endl << std::endl;
+		}*/
+				//std::cout << "=========================" << std::endl;
 	}
+	
 	for (auto it = children.begin(); it != children.end(); ++it) {
-		(*it)->UpdateGlobalTransform(oldTrans);
+		(*it)->UpdateGlobalTransform();
+	}
+
+}
+
+void GameObject::changeOrigin(Vector3 offset) {
+	this->offset = offset;
+	for (auto it = children.begin(); it != children.end(); ++it) {
+		(*it)->changeOrigin((*it)->GetLocalOffset() + offset);
 	}
 }
 
@@ -75,8 +102,9 @@ GameObject* GameObject::AddChild(GameObject* newChild) {
 	if (newChild) {
 		children.push_back(newChild);
 		newChild->SetParent(this);
+		return newChild;
 	}
-	return newChild;
+	return nullptr;
 }
 
 GameObject* GameObject::Pop() {

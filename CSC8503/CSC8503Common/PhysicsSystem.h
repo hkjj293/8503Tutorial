@@ -12,7 +12,6 @@ namespace NCL {
 			void Clear();
 
 			void Update(float dt);
-			void Pause(bool pause){ this->pause = pause; }
 
 			void UseGravity(bool state) {
 				applyGravity = state;
@@ -52,9 +51,6 @@ namespace NCL {
 
 			bool useBroadPhase		= true;
 			int numCollisionFrames	= 5;
-
-			//system
-			bool pause;
 		};
 	}
 }

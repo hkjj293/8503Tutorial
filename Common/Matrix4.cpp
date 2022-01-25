@@ -330,3 +330,14 @@ Vector4 Matrix4::operator*(const Vector4 &v) const {
 		v.x*array[3] + v.y*array[7] + v.z*array[11] + v.w * array[15]
 	);
 }
+
+bool Matrix4::operator==(const Matrix4& v) const {
+	for (int i = 0; i < 16; i++) {
+		if (v.array[i] != array[i]) return false;
+	}
+	return true;
+}
+
+bool Matrix4::operator!=(const Matrix4& v) const {
+	return !(this->operator==(v));
+}

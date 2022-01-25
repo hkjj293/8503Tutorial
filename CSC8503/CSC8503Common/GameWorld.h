@@ -53,12 +53,13 @@ namespace NCL {
 				std::vector<Constraint*>::const_iterator& first,
 				std::vector<Constraint*>::const_iterator& last) const;
 
-			void UpdateOctTree();
+			void UpdateOctTree(Vector3 pos);
 			OctTree<GameObject*>* GetOctTree() {
 				return octTree;
 			}
 
 			void CheckObjectsHeight();
+			GameObject* RemoveObject(GameObject* obj);
 			GameObject* EraseObject(GameObject* obj);
 
 			GameObject* NullptrIfErase(GameObject* obj);

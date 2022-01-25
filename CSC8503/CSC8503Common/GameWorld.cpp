@@ -16,7 +16,7 @@ GameWorld::GameWorld(){
 	shuffleObjects		= false;
 	worldIDCounter		= 0;
 
-	octTree = new OctTree<GameObject*>(Vector3(50, 50, 50), Vector3(100, 100, 100), 7, 6);
+	octTree = new OctTree<GameObject*>(Vector3(50, 50, 50), Vector3(1000, 100, 1000), 7, 6);
 }
 
 GameWorld::~GameWorld()	{
@@ -38,6 +38,8 @@ void GameWorld::ClearAndErase() {
 }
 
 GameObject* GameWorld::AddGameObject(GameObject* o) {
+	o->SetParent(nullptr);
+	o->GetTransform() = o->GetLocalTransform();
 	gameObjects.emplace_back(o);
 	o->SetWorldID(worldIDCounter++);
 	return o;
@@ -65,7 +67,6 @@ void GameWorld::OperateOnContents(GameObjectFunc f) {
 }
 
 void GameWorld::UpdateWorld(float dt) {
-
 	ClearEraseList();
 	if (shuffleObjects) {
 		std::random_shuffle(gameObjects.begin(), gameObjects.end());
@@ -74,7 +75,9 @@ void GameWorld::UpdateWorld(float dt) {
 	if (shuffleConstraints) {
 		std::random_shuffle(constraints.begin(), constraints.end());
 	}
-	
+	for (auto it = gameObjects.begin(); it != gameObjects.end(); ++it) {
+		(*it)->Update(dt);
+	}
 	CheckObjectsHeight();
 }
 
@@ -155,51 +158,53 @@ void GameWorld::GetConstraintIterators(
 	last	= constraints.end();
 }
 
-void GameWorld::UpdateOctTree() {
+void GameWorld::UpdateOctTree(Vector3 pos) {
 	//delete octTree;
 	octTree->Clear();
+	octTree->SetPos(pos);
 	//std::cout << "update" << std::endl;
 	GameObjectFunc f = [&](GameObject* o) {
-		Vector3 halfSizes;
-		if (!o->GetBroadphaseAABB(halfSizes)) {
-			return;
+		if (NullptrIfErase(o) && o->GetPhysicsObject()) {
+			Vector3 halfSizes;
+			if (!o->GetBroadphaseAABB(halfSizes)) {
+				return;
+			}
+			Vector3 pos = o->GetTransform().GetPosition();
+			//std::cout << o->GetName() << o->GetWorldID() << std::endl;
+			octTree->Insert(o, pos, halfSizes);
 		}
-		Vector3 pos = o->GetTransform().GetPosition();
-		//std::cout << o->GetName() << o->GetWorldID() << std::endl;
-		octTree->Insert(o, pos, halfSizes);
 	};
 
 	for (auto& i : gameObjects) {
-		if(NullptrIfErase(i)){
-			f(i);
-			i->OnSpreadChild(f);
-		}
+		f(i);
+		i->OnSpreadChild(f);
 	}
 }
 
 void GameWorld::CheckObjectsHeight() {
 	GameObjectFunc f = [&](GameObject* o) {
+		if (o->GetPhysicsObject() && o->GetLayer() == 8) return;
 		Vector3 pos = o->GetTransform().GetPosition();
-		if (pos.y < -10) {
+		if (pos.y < -100) {
 			GameObject* temp = o->Pop();
 			if (temp) {
-				eraseList.push_back(temp);
+				EraseObject(temp);
 			}
 			else {
-				GameObject* popout = EraseObject(o);
+				GameObject* popout = RemoveObject(o);
 				if (popout) {
-					eraseList.push_back(popout);
+					EraseObject(popout);
 				}
 			}
 		}
 	};
 	for (auto& i : gameObjects) {
-		i->OnSpreadChild(f);
 		f(i);
+		i->OnSpreadChild(f);
 	}
 }
 
-GameObject* GameWorld::EraseObject(GameObject* obj) {
+GameObject* GameWorld::RemoveObject(GameObject* obj) {
 	for (auto it = gameObjects.begin(); it != gameObjects.end(); ++it) {
 		if ((*it) == obj) {
 			gameObjects.erase(it);
@@ -209,6 +214,11 @@ GameObject* GameWorld::EraseObject(GameObject* obj) {
 			return obj;
 		}
 	}
+	return nullptr;
+}
+
+GameObject* GameWorld::EraseObject(GameObject* obj) {
+	eraseList.push_back(obj);
 	return nullptr;
 }
 

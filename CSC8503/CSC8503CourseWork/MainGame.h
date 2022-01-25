@@ -2,6 +2,7 @@
 #include "GameTechRenderer.h"
 #include "StateGameObject.h"
 #include "../CSC8503Common/PhysicsSystem.h"
+#include "../CSC8503Common/GameStateMachine.h"
 
 namespace NCL {
 	namespace CSC8503 {
@@ -13,7 +14,8 @@ namespace NCL {
 			CUBE = 16,
 			SPHERE = 32,
 			CAPSULE = 64,
-			STATEOBJ = 128
+			STATEOBJ = 128,
+			LAVA = 256,
 		};
 
 		class MainGame		{
@@ -25,6 +27,8 @@ namespace NCL {
 			bool IsEnd();
 
 		protected:
+			void InitTileTypes();
+			void InitGameState();
 			void InitialiseAssets();
 
 			void InitCamera();
@@ -32,26 +36,30 @@ namespace NCL {
 
 			void InitWorld();
 
-			void InitGameExamples();
-
 			void InitSphereGridWorld(int numRows, int numCols, float rowSpacing, float colSpacing, float radius);
 			void InitMixedGridWorld(int numRows, int numCols, float rowSpacing, float colSpacing);
 			void InitCubeGridWorld(int numRows, int numCols, float rowSpacing, float colSpacing, const Vector3& cubeDims);
-			void InitDefaultFloor();
+			void InitDefaultFloor(string file);
+			GameObject* AddTileToWorldFloor(Vector3 pos, float angle, Vector3 axis, Vector2 floorSize, float friction, float elasticity, OGLTexture* tex);
+			void InitLavaFloor();
+			void InitBuildings();
+			GameObject* BuildBuildings(int num,Transform t);
+
 			void BridgeConstraintTest();
 	
 			bool SelectObject();
 			void MoveSelectedObject();
 			void CheckIfObjectSee();
-			void WorldFloorMovement();
+			void WorldFloorMovement(float dt);
 			void DebugObjectMovement();
+			void UpdateTransForms();
 			void UpdateErasables();
 
-			void PauseAction();
 			void LockedObjectMovement();
 			void LockCameraMovment(float dt);
 
-			GameObject* AddFloorToWorld(const Vector3& position, const Vector3& floorSize);
+			GameObject* CreateLavaFloor(const Vector3& position, const Vector3& floorSize);
+			GameObject* AddFloorToWorld(const Vector3& position, const Vector3& floorSize, float friction, float elasticity, OGLTexture* tex);
 			GameObject* AddSphereToWorld(const Vector3& position, float radius, float inverseMass = 10.0f, bool hollow = false, float innerRadius = 0.0f);
 			GameObject* AddCubeToWorld(const Vector3& position, Vector3 dimensions, float inverseMass = 10.0f);
 			
@@ -80,6 +88,11 @@ namespace NCL {
 			OGLMesh*	cubeMesh	= nullptr;
 			OGLMesh*	sphereMesh	= nullptr;
 			OGLTexture* basicTex	= nullptr;
+			OGLTexture* lavaTex = nullptr;
+			OGLTexture* brickTex = nullptr;
+			OGLTexture* brick2Tex = nullptr;
+			OGLTexture* metalTex = nullptr;
+			OGLTexture* iceTex = nullptr;
 			OGLShader*	basicShader = nullptr;
 
 			//Coursework Meshes
@@ -90,15 +103,25 @@ namespace NCL {
 
 			//Game Feature
 			GameObject* worldFloor = nullptr;
+			GameObject* worldFloorGimbal = nullptr;
 			GameObject* lockedObject	= nullptr;
 			Vector3 lockedOffset		= Vector3(0, 14, 20);
 			void LockCameraToObject(GameObject* o) {
 				lockedObject = o;
 			}
+			float rotX;
+			float rotY;
+			struct TileType {
+				OGLTexture* tex;
+				float friction;
+				float elasticity;
+			} tileTypes[4];
+			vector<GameObject*> Buildings;
 			
 			//System
 			bool isEnd;
 			bool pause;
+			GameStateMachine* gameState;
 		};
 	}
 }

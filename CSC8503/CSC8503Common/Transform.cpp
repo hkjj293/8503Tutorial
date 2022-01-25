@@ -5,6 +5,8 @@ using namespace NCL::CSC8503;
 Transform::Transform()
 {
 	scale	= Vector3(1, 1, 1);
+	position = Vector3(0, 0, 0);
+	orientation = Quaternion();
 }
 
 Transform::~Transform()

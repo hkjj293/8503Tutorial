@@ -581,71 +581,7 @@ bool CollisionDetection::OBBIntersection(
 	const OBBVolume& volumeA, const Transform& worldTransformA,
 	const OBBVolume& volumeB, const Transform& worldTransformB, CollisionInfo& collisionInfo) {
 	return false;
-	/*
-	if ((worldTransformA.GetPosition() - worldTransformB.GetPosition()).Length() > (volumeA.GetHalfDimensions().Length() + volumeB.GetHalfDimensions().Length())) {
-		return false;
-	}
-	Quaternion orientationA = worldTransformA.GetOrientation();
-	Vector3 positionA = worldTransformA.GetPosition();
-	Vector3 boxSizeA = volumeA.GetHalfDimensions();
-	Matrix3 transformA = Matrix3(orientationA);
-	Matrix3 invTransformA = Matrix3(orientationA.Conjugate());
-
-	Quaternion orientationB = worldTransformB.GetOrientation();
-	Vector3 positionB = worldTransformB.GetPosition();
-	Vector3 boxSizeB = volumeB.GetHalfDimensions();
-	Matrix3 transformB = Matrix3(orientationB);
-	Matrix3 invTransformB = Matrix3(orientationB.Conjugate());
-
-	Matrix3 relativeTransformBToA = transformB * invTransformA;
-	Matrix3 relativeTransformAToB = transformA * invTransformB;
-
-	Vector3 relativePosBToA = relativeTransformBToA * positionB;
-	Vector3 relativePosAToB = relativeTransformAToB * positionA;
-
-	Matrix3 WorldToBToA = relativeTransformBToA * transformB;
-	Vector3 verticesB[8] = {
-		(Vector3(boxSizeB.x,boxSizeB.y,boxSizeB.z)),
-		(Vector3(boxSizeB.x,boxSizeB.y,-boxSizeB.z)),
-		(Vector3(boxSizeB.x,-boxSizeB.y,boxSizeB.z)),
-		(Vector3(boxSizeB.x,-boxSizeB.y,-boxSizeB.z)),
-		(Vector3(-boxSizeB.x,boxSizeB.y,boxSizeB.z)),
-		(Vector3(-boxSizeB.x,boxSizeB.y,-boxSizeB.z)),
-		(Vector3(-boxSizeB.x,-boxSizeB.y,boxSizeB.z)),
-		(Vector3(-boxSizeB.x,-boxSizeB.y,-boxSizeB.z)),
-	};
-
-	float dis = FLT_MAX;
-	Vector3 ClosestPoint = Vector3();
-
-	for (int i = 0; i < 8; i++) {
-		if ((WorldToBToA * verticesB[i]).Length() < dis) {
-			dis = verticesB->Length();
-			ClosestPoint = verticesB[i];
-		}
-	}
-
-	//Assume A is AABB first
-	Ray edges[3] = {
-		Ray(ClosestPoint, WorldToBToA * Vector3(-(ClosestPoint).x, 0,0)),
-		Ray(ClosestPoint, WorldToBToA * Vector3(0,-(ClosestPoint).y,0)),
-		Ray(ClosestPoint, WorldToBToA * Vector3(0,0,-(ClosestPoint).z))
-	};
-	for (int i = 0; i < 3; i++) {
-		RayCollision collision;
-		if (RayBoxIntersection(edges[i], Vector3(0, 0, 0), boxSizeA, collision) && 
-								((GameObject*)collision.node) &&
-								((GameObject*)collision.node)->GetRenderObject() &&
-								((GameObject*)collision.node)->GetBoundingVolume() &&
-								((GameObject*)collision.node)->GetBoundingVolume()->type == VolumeType::OBB) {
-			collisionInfo.AddContactPoint(collision.collidedAt, invTransformA * collision.collidedAt, (positionB - positionA).Normalised(), (collision.collidedAt - ClosestPoint).Length());
-			std::cout << "Collision at: " << invTransformB * invTransformA * collision.collidedAt << std::endl;
-			((GameObject*)collision.node)->GetRenderObject()->SetColour(Vector4(1, 0, 0, 1));
-			return true;
-		}
-	}
-	return false;
-	*/
+	
 }
 
 /*******  Past implementation ************************
@@ -665,7 +601,6 @@ bool CollisionDetection::OBBIntersection(
 
 	float high = volumeA.GetHalfHeight() - volumeA.GetRadius();
 	float low = -high;
-	//std::cout << sphereLocal.y << " " << low << " " << sphereLocal << std::endl;
 
 	if (sphereLocal.y > high) {
 		tempTransform.SetPosition(Vector3(0, high, 0));

@@ -115,6 +115,21 @@
       <Filter>Physics</Filter>
     </ClInclude>
     <ClInclude Include="Octree.h">
+      <Filter>CollisionDetection</Filter>
+    </ClInclude>
+    <ClInclude Include="MenuState.h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="BehaviourNodeWithChildren .h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="BehaviourSelector.h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="BehaviourSequence.h">
+      <Filter>AI</Filter>
+    </ClInclude>
+    <ClInclude Include="BehaviourAction.h">
       <Filter>AI</Filter>
     </ClInclude>
   </ItemGroup>
@@ -172,6 +187,12 @@
     </ClCompile>
     <ClCompile Include="SpringConstraint.cpp">
       <Filter>Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="GameStateMachine.h">
+      <Filter>AI</Filter>
+    </ClCompile>
+    <ClCompile Include="GameStateMachine.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

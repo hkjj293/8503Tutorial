@@ -6,6 +6,14 @@
 #include "../../Common/TextureLoader.h"
 #include "../CSC8503Common/PositionConstraint.h"
 #include "../../Common/Maths.h"
+#include "../../Common/Assets.h"
+#include "../CSC8503Common/StateTransition.h"
+#include "../CSC8503Common/GameStateMachine.h"
+#include "../CSC8503Common/StateMachine.h"
+#include "../CSC8503Common/State.h"
+
+#include <fstream>
+#include <exception>
 
 using namespace NCL;
 using namespace CSC8503;
@@ -24,8 +32,11 @@ MainGame::MainGame()	{
 	selectionObject = nullptr;
 	lockedObject = nullptr;
 
-	Debug::SetRenderer(renderer);
+	rotX = 0;
+	rotY = 0;
 
+	Debug::SetRenderer(renderer);
+	InitGameState();
 	InitialiseAssets();
 }
 
@@ -36,6 +47,292 @@ and the same texture and shader. There's no need to ever load in anything else
 for this module, even in the coursework, but you can add it if you like!
 
 */
+void  MainGame::InitTileTypes() {
+	tileTypes[0].tex = lavaTex;
+	tileTypes[0].elasticity = 0.0f;
+	tileTypes[0].friction = 1.0f;
+
+	tileTypes[1].tex = brickTex;
+	tileTypes[1].elasticity = 0.25f;
+	tileTypes[1].friction = 0.75f;
+
+	tileTypes[2].tex = metalTex;
+	tileTypes[2].elasticity = 0.75f;
+	tileTypes[2].friction = 0.25f;
+
+	tileTypes[3].tex = iceTex;
+	tileTypes[3].elasticity = 1.0f;
+	tileTypes[3].friction = 0.0f;
+}
+
+void MainGame::InitGameState() {
+	gameState = new GameStateMachine();
+	State* mainMenu = new State([&](float dt)-> void
+		{
+			UpdateKeys();
+			//SelectObject();
+
+			gameState->SetTimeLapse(gameState->GetTimeLapse() + dt);
+;			int t = ((int)gameState->GetTimeLapse()) % 2;
+			renderer->DrawString("CSC 8503 ScrewBall!", Vector2(3 + t, 10 - t),Vector4(t,1-t,t,1),50.0f);
+			renderer->DrawString("CSC 8503 ScrewBall!", Vector2(4 - t, 11 + t), Vector4(1-t, 1-t, 1-t, 1), 50.0f);
+
+			if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::DOWN))  gameState->SetMainChoice((gameState->GetMainChoice() + 1) % 3);
+			if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::UP))	gameState->SetMainChoice((gameState->GetMainChoice() - 1) % 3);
+
+			Vector4 white = Vector4(1, 1, 1, 1);
+			Vector4 red = Vector4(1, 0 , 0, 1);
+			renderer->DrawString("Start Part A", Vector2(32, 50), gameState->GetMainChoice() == 0 ? red : white, 30.0f);
+			renderer->DrawString("Start Part B", Vector2(32, 60), gameState->GetMainChoice() == 1 ? red : white, 30.0f);
+			renderer->DrawString("Exit", Vector2(42, 70), gameState->GetMainChoice() == 2 ? red : white, 30.0f);
+
+			UpdateTransForms();
+		});
+
+	State* pauseMenu = new State([&](float dt)-> void
+		{
+			UpdateKeys();
+			SelectObject();
+
+			renderer->DrawString("Paused.", Vector2(1, 5));
+			renderer->DrawString("Menu", Vector2(5, 14), Vector4(0.5,0.5,0.5,1), 50.0f);
+			renderer->DrawString("Menu", Vector2(6, 15), Vector4(0.1, 0.1, 0.1, 1), 50.0f);
+
+			if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::DOWN))  gameState->SetPauseChoice((gameState->GetPauseChoice() + 1) % 3);
+			if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::UP))	gameState->SetPauseChoice((gameState->GetPauseChoice() - 1) % 3);
+
+			Vector4 white = Vector4(1, 1, 1, 1);
+			Vector4 red = Vector4(1, 0, 0, 1);
+			renderer->DrawString("Continue", Vector2(4, 50), gameState->GetPauseChoice() == 0 ? red : white, 30.0f);
+			renderer->DrawString("Restart", Vector2(4, 60), gameState->GetPauseChoice() == 1 ? red : white, 30.0f);
+			renderer->DrawString("Exit", Vector2(4, 70), gameState->GetPauseChoice() == 2 ? red : white, 30.0f);
+
+			UpdateTransForms();
+		});
+
+	State* level1 = new State([&](float dt)-> void
+		{
+			gameState->SetTimeLapse(gameState->GetTimeLapse() + dt);
+			int time = gameState->GetTimeLapse() * 100;
+			string timeText = "Time Passed: " + std::to_string(time/100) + "." + std::to_string(time % 100) + "s";
+			renderer->DrawString(timeText, Vector2(1, 5));
+			UpdateKeys();
+			SelectObject();
+
+			gameState->SetLevel(1);
+			renderer->DrawString("Press Esc to Pause.", Vector2(1, 70));
+
+			WorldFloorMovement(dt);
+			physics->Update(dt);
+			LockCameraMovment(dt);
+
+			world->UpdateWorld(dt);
+			UpdateTransForms();
+		});
+
+	State* level2 = new State([&](float dt)-> void
+		{
+			UpdateKeys();
+			SelectObject();
+
+			gameState->SetLevel(2);
+			renderer->DrawString("Press Esc to Pause.", Vector2(1, 5));
+
+			WorldFloorMovement(dt);
+			physics->Update(dt);
+
+			LockCameraMovment(dt);
+
+			world->UpdateWorld(dt);
+			UpdateTransForms();
+		});
+
+	State* lose = new State([&](float dt)-> void
+		{
+			UpdateKeys();
+			SelectObject();
+			//Print Message
+			Vector4 white = Vector4(1, 1, 1, 1);
+			Vector4 red = Vector4(1, 0, 0, 1);
+			renderer->DrawString("You Lose!!", Vector2(32, 50),white, 30.0f);
+			renderer->DrawString("Back to Main Menu", Vector2(42, 70), red , 30.0f);
+		});
+
+	State* win = new State([&](float dt)-> void
+		{
+			UpdateKeys();
+			SelectObject();
+			//Print Message
+			Vector4 white = Vector4(1, 1, 1, 1);
+			Vector4 red = Vector4(1, 0, 0, 1);
+			int time = gameState->GetTimeLapse() * 100;
+			string timeText = "You Win!! Your time is: " + std::to_string(time / 100) + "." + std::to_string(time % 100) + "s";
+			renderer->DrawString(timeText, Vector2(32, 50), white, 30.0f);
+			renderer->DrawString("Back to Main Menu", Vector2(42, 70), red, 30.0f);
+		});
+
+	State* exit = new State([&](float dt)-> void
+		{
+			// Say goodbye?
+			isEnd = true;
+		});
+
+	gameState->AddState(mainMenu);
+	gameState->AddState(pauseMenu);
+	gameState->AddState(level1);
+	gameState->AddState(level2);
+	gameState->AddState(lose);
+	gameState->AddState(win);
+	gameState->AddState(exit);
+
+	gameState->AddTransition(new StateTransition(mainMenu, level1,
+		[&]()-> bool
+		{
+			// Choose the option in menu
+			bool a = Window::GetKeyboard()->KeyPressed(KeyboardKeys::RETURN);
+			bool b = gameState->GetMainChoice() == 0;
+			if (a && b) {
+				InitWorld();
+				selectionObject = nullptr;
+				if (!lockedObject) {
+					lockedObject = world->AddGameObject(AddSphereToWorld(Vector3(0, 20, 0), 1, 10.0f, true, 0.9));
+					lockedObject->SetName("player");
+				}
+			}
+			gameState->SetTimeLapse(0);
+			return a && b;
+		}
+	));
+
+	gameState->AddTransition(new StateTransition(mainMenu, level2,
+		[&]()-> bool
+		{
+			bool a = Window::GetKeyboard()->KeyPressed(KeyboardKeys::RETURN);
+			bool b = gameState->GetMainChoice() == 1;
+			return a && b;
+		}
+	));
+
+
+	gameState->AddTransition(new StateTransition(level1, win,
+		[&]()-> bool
+		{
+			if (!lockedObject) {
+				return false;
+			}
+			return lockedObject->GetName() == "Win";
+		}
+	));
+	gameState->AddTransition(new StateTransition(level2, win,
+		[&]()-> bool
+		{
+			return false;
+		}
+	));
+	gameState->AddTransition(new StateTransition(level2, lose,
+		[&]()-> bool
+		{
+			return false;
+		}
+	));
+	gameState->AddTransition(new StateTransition(level1, lose,
+		[&]()-> bool
+		{
+			return lockedObject == nullptr;
+		}
+	));
+	gameState->AddTransition(new StateTransition(level2, pauseMenu,
+		[&]()-> bool
+		{
+			// a pause
+			bool a = Window::GetKeyboard()->KeyPressed(KeyboardKeys::ESCAPE);
+			if (a) {
+				gameState->SetPauseChoice(0);
+			}
+			return a;
+		}
+	));
+	gameState->AddTransition(new StateTransition(level1, pauseMenu,
+		[&]()-> bool
+		{
+			// a pause
+			bool a = Window::GetKeyboard()->KeyPressed(KeyboardKeys::ESCAPE);
+			if (a) {
+				gameState->SetPauseChoice(0);
+			}
+			return a;
+		}
+	));
+	gameState->AddTransition(new StateTransition(pauseMenu, level1,
+		[&]()-> bool
+		{
+			bool a = Window::GetKeyboard()->KeyPressed(KeyboardKeys::ESCAPE);
+			bool b = gameState->GetLevel() == 1;
+			bool c = Window::GetKeyboard()->KeyPressed(KeyboardKeys::RETURN);
+			bool d = gameState->GetPauseChoice() == 0;
+			bool e = gameState->GetPauseChoice() == 1;
+			if (c && e && !a) {
+				InitWorld();
+				selectionObject = nullptr;
+				lockedObject = nullptr;
+			}
+			return b && (a || (c && (d || e)));
+		}
+	));
+
+	gameState->AddTransition(new StateTransition(pauseMenu, level2,
+		[&]()-> bool
+		{
+			bool a = Window::GetKeyboard()->KeyPressed(KeyboardKeys::ESCAPE);
+			bool b = gameState->GetLevel() == 2;
+			bool c = Window::GetKeyboard()->KeyPressed(KeyboardKeys::RETURN);
+			bool d = gameState->GetPauseChoice() == 0;
+			bool e = gameState->GetPauseChoice() == 1;
+			if (c && e && !a) {
+				InitWorld();
+				selectionObject = nullptr;
+				lockedObject = nullptr;
+			}
+			return b && (a || (c && (d || e)));
+		}
+	));
+	gameState->AddTransition(new StateTransition(pauseMenu, mainMenu,
+		[&]()-> bool
+		{
+			bool a = Window::GetKeyboard()->KeyPressed(KeyboardKeys::RETURN);
+			bool b = gameState->GetPauseChoice() == 2;
+			if (a && b) {
+				gameState->SetPauseChoice(0);
+			}
+			return (a && b);
+		}
+	));
+	gameState->AddTransition(new StateTransition(win, mainMenu,
+		[&]()-> bool
+		{
+			//Pressed a button?
+			return Window::GetKeyboard()->KeyPressed(KeyboardKeys::RETURN);
+		}
+	));
+	gameState->AddTransition(new StateTransition(lose, mainMenu,
+		[&]()-> bool
+		{
+			//Pressed a button?
+			return Window::GetKeyboard()->KeyPressed(KeyboardKeys::RETURN);
+		}
+	));
+	gameState->AddTransition(new StateTransition(mainMenu, exit,
+		[&]()-> bool
+		{
+			bool a = Window::GetKeyboard()->KeyPressed(KeyboardKeys::ESCAPE); 
+			bool b = Window::GetKeyboard()->KeyPressed(KeyboardKeys::RETURN);
+			bool c = gameState->GetMainChoice() == 2;
+			return a || (b && c);
+		}
+	));
+	
+}
+
 void MainGame::InitialiseAssets() {
 	auto loadFunc = [](const string& name, OGLMesh** into) {
 		*into = new OGLMesh(name);
@@ -52,7 +349,14 @@ void MainGame::InitialiseAssets() {
 	loadFunc("capsule.msh"	 , &capsuleMesh);
 
 	basicTex	= (OGLTexture*)TextureLoader::LoadAPITexture("checkerboard.png");
+	lavaTex = (OGLTexture*)TextureLoader::LoadAPITexture("lava2.png");   // Source from https://www.moddb.com/mods/hoover1979-ultrahd-doom-texture-pack/images/lava-texture
+	brickTex = (OGLTexture*)TextureLoader::LoadAPITexture("brick.png");//https://www.cleanpng.com/png-wall-brick-icon-drawn-cartoon-of-a-wall-93864/
+	brick2Tex = (OGLTexture*)TextureLoader::LoadAPITexture("brick2.png");//https://www.cleanpng.com/png-stone-wall-brick-material-texture-vintage-black-br-135307/download-png.html
+	metalTex = (OGLTexture*)TextureLoader::LoadAPITexture("metal.png"); // https://www.cleanpng.com/png-grunge-heavy-metal-texture-photography-wallpaper-p-615575/download-png.html
+	iceTex = (OGLTexture*)TextureLoader::LoadAPITexture("ice.png"); //https://pngtree.com/element/down?id=NTkyMzU3Mw==&type=1&time=1639712093&token=YmRiYzcyMmIxZWRmMzJhNDhkNGFiNjYxZTlmNWFjOGY=
 	basicShader = new OGLShader("GameTechVert.glsl", "GameTechFrag.glsl");
+
+	InitTileTypes();
 
 	InitCamera();
 	InitWorld();
@@ -81,24 +385,8 @@ void MainGame::UpdateGame(float dt) {
 		world->GetMainCamera()->UpdateCamera(dt);
 	}
 	UpdateErasables();
-	UpdateKeys();
-	//CheckIfObjectSee();
-	SelectObject();
-	MoveSelectedObject();
-	if (dt < 0.01f) {
-		Sleep(1);
-	}
-	if (!pause) {
-		physics->Update(dt);
 
-		if (testStateObject) {
-			testStateObject->Update(dt);
-		}
-
-		LockCameraMovment(dt);
-
-		world->UpdateWorld(dt);
-	}
+	gameState->Update(dt);
 	
 	renderer->Update(dt);
 
@@ -111,13 +399,6 @@ bool MainGame::IsEnd() {
 }
 
 void MainGame::UpdateKeys() {
-	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::ESCAPE)) {
-		//isEnd = true;
-		pause = !pause;
-		physics->Pause(pause);
-	}
-	PauseAction();
-
 	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::F1)) {
 		InitWorld(); //We can reset the simulation at any time with F1
 		selectionObject = nullptr;
@@ -129,9 +410,9 @@ void MainGame::UpdateKeys() {
 	}
 
 	if (Window::GetKeyboard()->KeyPressed(KeyboardKeys::Y)) {
-		world->AddGameObject(AddSphereToWorld(Vector3(0, 20, 0), 1, 10.0f, true, 0.9))
-			->AddChild(AddSphereToWorld(Vector3(4, 20, 0), 1, 10.0f))
-			->AddChild(AddCapsuleToWorld(Vector3(8, 20, 0), 1, 0.5f, 10.0f));
+		Vector3 offset = worldFloor->GetTransform().GetPosition();
+		world->AddGameObject(AddSphereToWorld(Vector3(4, 20, 0) + offset, 1, 10.0f));
+		world->AddGameObject(AddCapsuleToWorld(Vector3(8, 20, 0) + offset, 1, 0.5f, 10.0f));
 	}
 	//Running certain physics updates in a consistent order might cause some
 	//bias in the calculations - the same objects might keep 'winning' the constraint
@@ -159,17 +440,6 @@ void MainGame::UpdateKeys() {
 	}
 }
 
-void MainGame::PauseAction() {
-	if (pause) {
-		renderer->DrawString("Paused.", Vector2(1, 5));
-		//ShowMenu();
-	}
-	else {
-		renderer->DrawString("Press Esc to Pause.", Vector2(1, 5));
-		//HideMenu();
-	}
-}
-
 void MainGame::LockedObjectMovement() {
 	Matrix4 view		= world->GetMainCamera()->BuildViewMatrix();
 	Matrix4 camWorld	= view.Inverse();
@@ -194,7 +464,7 @@ void MainGame::LockedObjectMovement() {
 	}
 
 	if (Window::GetKeyboard()->KeyDown(KeyboardKeys::RIGHT)) {
-		Vector3 worldPos = selectionObject->GetTransform().GetPosition();
+		Vector3 worldPos = lockedObject->GetTransform().GetPosition();
 		lockedObject->GetPhysicsObject()->AddForce(rightAxis * force);
 	}
 
@@ -215,7 +485,7 @@ void MainGame::LockCameraMovment(float dt) {
 	if (lockedObject != nullptr) {
 		Vector3 objPos = lockedObject->GetTransform().GetPosition();
 		Vector3 v = lockedObject->GetPhysicsObject()->GetLinearVelocity();
-		Vector3 camTargetPos = objPos - Vector3(v.x, 0, v.z) + Vector3(0, 20, 0);
+		Vector3 camTargetPos = objPos - Vector3(v.x, 0, v.z) + Vector3(0, 40, 0);
 		float r = 0.2;
 		Vector3 delta = (world->GetMainCamera()->GetPosition() - objPos);
 		float sqrLength = (delta.x * delta.x + delta.z * delta.z);
@@ -241,7 +511,14 @@ void MainGame::LockCameraMovment(float dt) {
 	}
 }
 
-void MainGame::WorldFloorMovement() {
+void MainGame::WorldFloorMovement(float dt) {
+	if (!lockedObject) {
+		worldFloor->SetLocalOffset(Vector3(0, 0, 0));
+		worldFloor->changeOrigin(Vector3(0, 0, 0));
+		worldFloor->GetTransform().SetPosition(Vector3(0, 0, 0));
+		worldFloor->GetTransform().SetOrientation(Quaternion());
+		return;
+	}
 	Matrix4 view = world->GetMainCamera()->BuildViewMatrix();
 	Matrix4 camWorld = view.Inverse();
 
@@ -250,10 +527,30 @@ void MainGame::WorldFloorMovement() {
 	Vector3 fwdAxis = Vector3::Cross(Vector3(0, 1, 0), rightAxis);
 	fwdAxis.y = 0.0f;
 	fwdAxis.Normalise();
-
 	Vector2 movement = Window::GetMouse()->GetRelativePosition();
-
-	worldFloor->GetTransform().SetOrientation(Quaternion(Matrix4::Rotation(movement.x, fwdAxis)) * Quaternion(Matrix4::Rotation(movement.y, rightAxis)));
+	//worldFloor->GetTransform().SetPosition(lockedObject.GetPosition);
+	rotX += Window::GetMouse()->GetRelativePosition().x;
+	rotY += Window::GetMouse()->GetRelativePosition().y;
+	float maxN = 15.0f;
+	rotX = min(maxN, max(-maxN, rotX));
+	rotY = min(maxN, max(-maxN, rotY));
+	Matrix4 rotation = Matrix4(Quaternion(Matrix4::Rotation(rotX, fwdAxis)) * Quaternion(Matrix4::Rotation(rotY, rightAxis)));
+	if (lockedObject) {
+		Vector3 pos = Vector3(lockedObject->GetTransform().GetPosition().x, 0, lockedObject->GetTransform().GetPosition().z);
+		//worldFloorGimbal->SetLocalOffset(pos);
+		//worldFloorGimbal->changeOrigin(pos);
+		worldFloorGimbal->GetTransform().SetPosition(pos);
+		//worldFloor->SetLocalOffset(-pos);
+		//worldFloor->changeOrigin(-pos);
+		worldFloor->GetLocalTransform().SetPosition(-pos);
+	}
+	else {
+		worldFloorGimbal->GetTransform().SetPosition(world->GetMainCamera()->GetPosition());
+		worldFloor->GetLocalTransform().SetPosition(-world->GetMainCamera()->GetPosition());
+	}
+	worldFloorGimbal->GetTransform().SetOrientation(rotation);
+	//worldFloor->GetTransform().SetPosition(Vector3(Window::GetMouse()->GetRelativePosition().x/100.0f,0,0));
+	//worldFloor->UpdateGlobalTransform();
 }
 
 void MainGame::DebugObjectMovement() {
@@ -297,7 +594,7 @@ void MainGame::DebugObjectMovement() {
 
 void MainGame::InitCamera() {
 	world->GetMainCamera()->SetNearPlane(0.1f);
-	world->GetMainCamera()->SetFarPlane(500.0f);
+	world->GetMainCamera()->SetFarPlane(2000.0f);
 	world->GetMainCamera()->SetPitch(-15.0f);
 	world->GetMainCamera()->SetYaw(315.0f);
 	world->GetMainCamera()->SetPosition(Vector3(-60, 40, 60));
@@ -310,7 +607,9 @@ void MainGame::InitWorld() {
 
 	//InitMixedGridWorld(5, 5, 3.5f, 3.5f);
 	//InitGameExamples();
-	InitDefaultFloor();
+	InitDefaultFloor("FloorPlan.txt");
+	InitLavaFloor();
+	InitCamera();
 	//BridgeConstraintTest();
 	//testStateObject = AddStateObjectToWorld(Vector3(10, 1, 0));
 }
@@ -345,21 +644,22 @@ void MainGame::BridgeConstraintTest() {
 A single function to add a large immoveable cube to the bottom of our world
 
 */
-GameObject* MainGame::AddFloorToWorld(const Vector3& position, const Vector3& floorSize) {
+GameObject* MainGame::AddFloorToWorld(const Vector3& position, const Vector3& floorSize, float friction, float elasticity, OGLTexture* tex) {
 	GameObject* floor = new GameObject("floor");
 	floor->SetLayer(ObjectMask::FLOOR);
 	floor->SetWorldID(rand());
 	OBBVolume* volume	= new OBBVolume(floorSize);
 	floor->SetBoundingVolume((CollisionVolume*)volume);
-	floor->GetTransform()
+	floor->GetLocalTransform()
 		.SetScale(floorSize * 2)
-		.SetPosition(position)
-		.SetOrientation(Quaternion(Matrix4::Rotation(5, Vector3(0,0,1))));
+		.SetPosition(position);
 
-	floor->SetRenderObject(new RenderObject(&floor->GetTransform(), cubeMesh, basicTex, basicShader));
+	floor->SetRenderObject(new RenderObject(&floor->GetTransform(), cubeMesh, tex, basicShader));
 	floor->SetPhysicsObject(new PhysicsObject(&floor->GetTransform(), floor->GetBoundingVolume()));
 
 	floor->GetPhysicsObject()->SetMask(0xFFFFFFFF ^ ObjectMask::FLOOR);
+	floor->GetPhysicsObject()->SetFriction(friction);
+	floor->GetPhysicsObject()->SetElasticity(elasticity);
 	floor->GetPhysicsObject()->SetInverseMass(0);
 	floor->GetPhysicsObject()->InitCubeInertia();
 
@@ -383,11 +683,11 @@ GameObject* MainGame::AddSphereToWorld(const Vector3& position, float radius, fl
 	SphereVolume* volume = new SphereVolume(radius,hollow,innerRadius);
 	sphere->SetBoundingVolume((CollisionVolume*)volume);
 
-	sphere->GetTransform()
+	sphere->GetLocalTransform()
 		.SetScale(sphereSize)
 		.SetPosition(position);
 
-	sphere->SetRenderObject(new RenderObject(&sphere->GetTransform(), sphereMesh, basicTex, basicShader));
+	sphere->SetRenderObject(new RenderObject(&sphere->GetTransform(), sphereMesh, brick2Tex, basicShader));
 	sphere->SetPhysicsObject(new PhysicsObject(&sphere->GetTransform(), sphere->GetBoundingVolume()));
 	sphere->GetPhysicsObject()->SetLinearResistance(Vector3(0.2, 0.2, 0.2));
 	sphere->GetPhysicsObject()->SetAngularResistance(Vector3(0.1, 0.1, 0.1));
@@ -411,7 +711,7 @@ GameObject* MainGame::AddCapsuleToWorld(const Vector3& position, float halfHeigh
 	float HRRatio = halfHeight / radius;
 	capsule->SetBoundingVolume((CollisionVolume*)volume);
 
-	capsule->GetTransform()
+	capsule->GetLocalTransform()
 		.SetScale(Vector3(radius* 2, halfHeight, radius * 2))
 		.SetPosition(position);
 
@@ -441,7 +741,7 @@ GameObject* MainGame::AddCubeToWorld(const Vector3& position, Vector3 dimensions
 	cube->SetWorldID(rand());
 	cube->SetBoundingVolume((CollisionVolume*)volume);
 
-	cube->GetTransform()
+	cube->GetLocalTransform()
 		.SetPosition(position)
 		.SetScale(dimensions * 2);
 
@@ -465,7 +765,7 @@ void MainGame::InitSphereGridWorld(int numRows, int numCols, float rowSpacing, f
 			AddSphereToWorld(position, radius, 1.0f);
 		}
 	}
-	AddFloorToWorld(Vector3(0, -2, 0), Vector3(100, 2, 100));
+	AddFloorToWorld(Vector3(0, -2, 0), Vector3(100, 2, 100),1.0,1.0,basicTex);
 }
 
 void MainGame::InitMixedGridWorld(int numRows, int numCols, float rowSpacing, float colSpacing) {
@@ -495,45 +795,204 @@ void MainGame::InitCubeGridWorld(int numRows, int numCols, float rowSpacing, flo
 	}
 }
 
-void MainGame::InitDefaultFloor() {
+void MainGame::InitDefaultFloor(string file) {
 	float floorSize = 20;
+	worldFloorGimbal = new GameObject("WorldFloorGimbal");
+	world->AddGameObject(worldFloorGimbal)->GetTransform().SetPosition(Vector3(0, 0, 0));
 	worldFloor = new GameObject("WorldFloor");
-	world->AddGameObject(worldFloor)->GetTransform().SetOrientation(Quaternion());
+	worldFloorGimbal->AddChild(worldFloor)->GetTransform().SetPosition(Vector3(0, 0, 0));
 
-	worldFloor->AddChild(AddFloorToWorld(Vector3(0, -2, 0), Vector3(floorSize, 2, floorSize)))->GetTransform()
-		.SetOrientation(Matrix4::Rotation(0, Vector3(1, 0, 0)));
-
-	float degree = 30;
-	float angle = degree * 3.1415f / 180;
-	float elavation = floorSize * sin(angle);
-	float eleError = floorSize - sqrt(floorSize * floorSize - elavation * elavation);
-	float CurrX = 2 * floorSize - eleError;
+	std::ifstream input(Assets::DATADIR + file);
+	std::vector<Vector3> pointList;
+	std::vector<Vector2> sizeList;
+	//std::vector<Vector3> pointList;
+	char inst = 's';
+	float degree = 0;
+	float angle = 0;
+	float elavation = 0;
+	float eleErrorX = 0;
+	float eleErrorZ = 0;
+	float CurrX = 0;
 	float CurrZ = 0;
+	float sizeX = 1;
+	float sizeZ = 1;
+	int type = 0;
+	Vector3 axis(0, 0, 0);
+	float offsetY = 2;
+	char dir = '+';
+	int PointNum = 0;
+	GameObject* last = nullptr;
+	Matrix4 rotation;
+	GameObject* b = nullptr;
+	Transform t;
+	bool final = false;
 
-	worldFloor->AddChild(AddFloorToWorld(Vector3(CurrX, elavation - 2, CurrZ), Vector3(floorSize, 2, floorSize/2)))->GetTransform()
-		.SetOrientation(Matrix4::Rotation(degree, Vector3(0, 0, 1)));
+	try {
+		if (input.is_open()) {
+			while (inst != 'e')
+			{
+				input >> inst;
+				switch (inst) {
+				case 's':
+					input >> CurrX;
+					input >> elavation;
+					input >> CurrZ;
+					break;
+				case 'm':
+					input >> PointNum;
+					if (PointNum < pointList.size() && PointNum >= 0) {
+						CurrX = pointList[pointList.size() - PointNum - 1].x;
+						CurrZ = pointList[pointList.size() - PointNum - 1].z;
+						elavation = pointList[pointList.size() - PointNum - 1].y;
+						sizeX = sizeList[pointList.size() - PointNum - 1].x;
+						sizeZ = sizeList[pointList.size() - PointNum - 1].y;
+					}
+					break;
+				case 'b':
+					int building;
+					float bX, bY, bZ;
+					float yaw, pitch, roll;
+					float sX, sY, sZ;
+					input >> building;
+					input >> bX;
+					input >> bY;
+					input >> bZ;
+					input >> pitch;
+					input >> yaw;
+					input >> roll;
+					input >> sX;
+					input >> sY;
+					input >> sZ;
+					t.SetPosition(last->GetLocalTransform().GetPosition() + Vector3(bX, bY, bZ));
+					t.SetScale(Vector3(sX, sY, sZ));
+					b = last->AddChild(BuildBuildings(building,t));
+					if (b) {
+						rotation = Matrix4::Rotation(yaw, Vector3(0, 1, 0))* Matrix4::Rotation(pitch, Vector3(1, 0, 0))* Matrix4::Rotation(roll, Vector3(0, 0, -1));
+						b->GetLocalTransform().SetOrientation(Quaternion(rotation));
+					}
+					break;
+				case 'x':
+					input >> dir;
+					if (dir == '+') {
+						axis += Vector3(0, 0, 1);
+					}
+					else {
+						axis += Vector3(0, 0, -1);
+					}
+					break;
 
-	CurrX = CurrX + 2 * floorSize - eleError;
-	elavation = elavation * 2 ;
-	worldFloor->AddChild(AddFloorToWorld(Vector3(CurrX , elavation -2, CurrZ), Vector3(floorSize, 2, floorSize)))->GetTransform()
-		.SetOrientation(Matrix4::Rotation(0, Vector3(1, 0, 0)));
+				case 'z':
+					input >> dir;
+					if (dir == '+') {
+						axis += Vector3(1, 0, 0);
+					}
+					else {
+						axis += Vector3(-1, 0, 0);
+					}
+					break;
+				case 'f':
+					final = true;
+				case 'p':
+					CurrX += floorSize * sizeX * axis.z;
+					CurrZ += floorSize * sizeZ * axis.x;
 
-	CurrZ = CurrZ + 2 * floorSize;
-	worldFloor->AddChild(AddFloorToWorld(Vector3(CurrX , elavation -2, CurrZ), Vector3(floorSize, 2, floorSize)))->GetTransform()
-		.SetOrientation(Matrix4::Rotation(0, Vector3(1, 0, 0)));
+					input >> degree;
+					input >> sizeX;
+					input >> sizeZ;
+					input >> type;
 
-	CurrZ = CurrZ + 2 * floorSize;
-	worldFloor->AddChild(AddFloorToWorld(Vector3(CurrX , elavation - 2, CurrZ), Vector3(floorSize, 2, floorSize)))->GetTransform()
-		.SetOrientation(Matrix4::Rotation(0, Vector3(1, 0, 0)));
-
-
-	
+					CurrX += floorSize * sizeX * axis.z;
+					CurrZ += floorSize * sizeZ * axis.x;
+					//rotate
+					angle = degree * 3.1415f / 180;
+					float eleX = (floorSize * sizeX * sin(angle)) * abs(axis.z);
+					float eleZ = (floorSize * sizeZ * sin(angle)) * abs(axis.x);
+					elavation += eleX + eleZ;
+					eleErrorX = floorSize * sizeX - sqrt((floorSize * sizeX) * (floorSize * sizeX) - eleX * eleX);
+					eleErrorZ = floorSize * sizeZ - sqrt((floorSize * sizeZ) * (floorSize * sizeZ) - eleZ * eleZ);
+					CurrX -= eleErrorX * axis.z;
+					CurrZ -= eleErrorZ * axis.x;
+					//std::cout << Vector3(CurrX, elavation - offsetY, CurrZ) << angle << axis << Vector2(sizeX * floorSize, sizeZ * floorSize) << std::endl;
+					last = AddTileToWorldFloor(Vector3(CurrX, elavation - offsetY, CurrZ), degree, axis.Abs(), Vector2(sizeX * floorSize, sizeZ * floorSize), tileTypes[type].friction, tileTypes[type].elasticity, tileTypes[type].tex);
+					if (final) {
+						last->SetName("finalPlate");
+					}
+					elavation += eleX + eleZ;
+					CurrX -= eleErrorX * axis.z;
+					CurrZ -= eleErrorZ * axis.x;
+					axis = Vector3();
+					pointList.push_back(Vector3(CurrX, elavation, CurrZ));
+					sizeList.push_back(Vector2(sizeX, sizeZ));
+					break;
+				}
+			}
+		}
+	}
+	catch (std::exception& e) {
+		std::cout << e.what() << std::endl;
+	}
+	input.close();
 }
 
-void MainGame::InitGameExamples() {
-	AddPlayerToWorld(Vector3(0, 5, 0));
-	AddEnemyToWorld(Vector3(5, 5, 0));
-	AddBonusToWorld(Vector3(10, 5, 0));
+GameObject* MainGame::AddTileToWorldFloor(Vector3 pos, float angle, Vector3 axis, Vector2 floorSize, float friction, float elasticity, OGLTexture* tex) {
+	GameObject* obj = worldFloor->AddChild(AddFloorToWorld(pos, Vector3(floorSize.x, 2, floorSize.y), friction, elasticity, tex));
+	obj->GetLocalTransform().SetOrientation(Quaternion(Matrix4::Rotation(angle, axis)));
+	return obj;
+}
+
+void MainGame::InitLavaFloor() {
+	for (int i = -5; i < 5; i++) {
+		for (int j = -5; j < 5; j++) {
+			world->AddGameObject(CreateLavaFloor(Vector3(i*800, -100, j* 800), Vector3(400, 1, 400)));
+		}
+	}
+}
+
+void MainGame::InitBuildings() {
+	Buildings.clear();
+	//GameObject* obstacleBar = AddCubeToWorld(Vector3())
+
+	//Buildings.push_back(obstacleBar);
+}
+
+GameObject* MainGame::BuildBuildings(int num, Transform t) {
+	if (num == 0) {
+		GameObject* a = AddFloorToWorld(t.GetPosition(), t.GetScale(),1.0f,1.0f,basicTex);
+		a->SetupdateFunc([&](float dt, GameObject* a) {
+			//std::cout << a->GetParent()->GetTransform().GetScale() << std::endl;
+			a->GetLocalTransform().SetOrientation(a->GetLocalTransform().GetOrientation() * Quaternion(Matrix4::Rotation(20 * dt,Vector3(0,1,0))));
+			});
+		return a;
+	}
+	else if (num == 1) {
+		GameObject* a = AddFloorToWorld(t.GetPosition(), t.GetScale(), 1.0f, 1.0f, basicTex);
+		a->SetupdateFunc([&](float dt, GameObject* a) {
+			//std::cout << a->GetParent()->GetTransform().GetScale() << std::endl;
+			if (Window::GetKeyboard()->KeyDown(KeyboardKeys::R)) {
+				a->GetLocalTransform().SetPosition(a->GetLocalTransform().GetPosition() + Vector3(0, 10, 0) * dt);
+			}
+			else if (Window::GetKeyboard()->KeyDown(KeyboardKeys::T)) {
+				a->GetLocalTransform().SetPosition(a->GetLocalTransform().GetPosition() + Vector3(0, -10, 0) * dt);
+			}
+			});
+		return a;
+		return nullptr;
+	}
+}
+
+GameObject* MainGame::CreateLavaFloor(const Vector3& position, const Vector3& floorSize) {
+	GameObject* floor = new GameObject("lavaFloor");
+	floor->SetLayer(ObjectMask::LAVA);
+	floor->SetWorldID(rand());
+	OBBVolume* volume = new OBBVolume(floorSize);
+	floor->SetBoundingVolume((CollisionVolume*)volume);
+	floor->GetLocalTransform()
+		.SetScale(floorSize * 2)
+		.SetPosition(position);
+
+	floor->SetRenderObject(new RenderObject(&floor->GetTransform(), cubeMesh, lavaTex, basicShader));
+
+	return floor;
 }
 
 GameObject* MainGame::AddPlayerToWorld(const Vector3& position) {
@@ -547,7 +1006,7 @@ GameObject* MainGame::AddPlayerToWorld(const Vector3& position) {
 
 	character->SetBoundingVolume((CollisionVolume*)volume);
 
-	character->GetTransform()
+	character->GetLocalTransform()
 		.SetScale(Vector3(meshSize, meshSize, meshSize))
 		.SetPosition(position);
 
@@ -573,13 +1032,13 @@ GameObject* MainGame::AddEnemyToWorld(const Vector3& position) {
 	float meshSize		= 3.0f;
 	float inverseMass	= 0.5f;
 
-	GameObject* character = new GameObject();
+	StateGameObject* character = new StateGameObject();
 	character->SetLayer(ObjectMask::ENEMY);
 
 	CapsuleVolume* volume = new CapsuleVolume(meshSize, meshSize / 2.0f);
 	character->SetBoundingVolume((CollisionVolume*)volume);
 
-	character->GetTransform()
+	character->GetLocalTransform()
 		.SetScale(Vector3(meshSize, meshSize, meshSize))
 		.SetPosition(position);
 
@@ -600,7 +1059,7 @@ GameObject* MainGame::AddBonusToWorld(const Vector3& position) {
 
 	SphereVolume* volume = new SphereVolume(0.25f);
 	apple->SetBoundingVolume((CollisionVolume*)volume);
-	apple->GetTransform()
+	apple->GetLocalTransform()
 		.SetScale(Vector3(0.25, 0.25, 0.25))
 		.SetPosition(position);
 
@@ -621,7 +1080,7 @@ StateGameObject* MainGame::AddStateObjectToWorld(const Vector3& position) {
 
 	SphereVolume* volume = new SphereVolume(0.25f);
 	obj->SetBoundingVolume((CollisionVolume*)volume);
-	obj->GetTransform()
+	obj->GetLocalTransform()
 		.SetScale(Vector3(0.25, 0.25, 0.25))
 		.SetPosition(position);
 
@@ -666,7 +1125,7 @@ bool MainGame::SelectObject() {
 			if (selectionObject) {	//set colour to deselected;
 				selectionObject->GetRenderObject()->SetColour(Vector4(1, 1, 1, 1));
 				selectionObject = nullptr;
-				lockedObject	= nullptr;
+				//lockedObject	= nullptr;
 			}
 			//GG
 			Ray ray = CollisionDetection::BuildRayFromMouse(*world->GetMainCamera());
@@ -719,6 +1178,15 @@ bool MainGame::SelectObject() {
 void MainGame::UpdateErasables() {
 	selectionObject = world->NullptrIfErase(selectionObject);
 	lockedObject = world->NullptrIfErase(lockedObject);
+}
+
+void MainGame::UpdateTransForms() {
+	std::vector<GameObject*>::const_iterator first;
+	std::vector<GameObject*>::const_iterator last;
+	world->GetObjectIterators(first, last);
+	for (auto i = first; i != last; ++i) {
+		(*i)->UpdateGlobalTransform();
+	}
 }
 
 /*

@@ -16,9 +16,20 @@ namespace NCL {
 		class GameObject	{
 		public:
 			GameObject(string name = "");
+			GameObject(string name, std::function<void(float,GameObject* a)> updatefunc);
 			~GameObject();
 
-			void UpdateGlobalTransform(Transform& oldParent);
+			void UpdateGlobalTransform();
+
+			void Update(float dt) {
+				updateFunc(dt,this);
+				for (auto it = children.begin(); it != children.end(); ++it) {
+					(*it)->Update(dt);
+				}
+
+			}
+
+			void changeOrigin(Vector3 t);
 
 			void SetBoundingVolume(CollisionVolume* vol) {
 				boundingVolume = vol;
@@ -34,6 +45,22 @@ namespace NCL {
 
 			Transform& GetTransform() {
 				return transform;
+			}
+
+			Transform& GetLocalTransform() {
+				return localTransform;
+			}
+
+			Vector3 GetOffset() {
+				return offset;
+			}
+
+			Vector3 GetLocalOffset() {
+				return LocalOffset;
+			}
+
+			void SetLocalOffset(Vector3 LocalOffset) {
+				this->LocalOffset = LocalOffset;
 			}
 
 			RenderObject* GetRenderObject() const {
@@ -56,6 +83,10 @@ namespace NCL {
 				return name;
 			}
 
+			void SetName(string name){
+				this->name = name;
+			}
+
 			const int GetLayer() const {
 				return layer;
 			}
@@ -65,6 +96,9 @@ namespace NCL {
 			}
 
 			virtual void OnCollisionBegin(GameObject* otherObject) {
+				if (this->GetName() == "player" && otherObject->GetName() == "finalPlate") {
+					this->name = "Win";
+				}
 				//std::cout << "OnCollisionBegin event occured!\n";
 			}
 
@@ -118,16 +152,26 @@ namespace NCL {
 			void OnSpreadChild(std::function<void(GameObject*)> f) {
 				if (GetChildrenSize() > 0) {
 					for(GameObject* i : children) {
-						i->OnSpreadChild(f);
 						f(i);
+						i->OnSpreadChild(f);
 					}
 				}
 			}
 
+			std::function<void(float, GameObject* a)> GetupdateFunc() {
+				return updateFunc;
+			}
 
+			void SetupdateFunc(std::function<void(float, GameObject* a)> func) {
+				updateFunc = func;
+			}
 
 		protected:
-			Transform			transform;
+			Transform			transform;  // Auto calculate
+			Transform			localTransform;
+			Vector3			offset; // Auto calculate
+			Vector3			LocalOffset;
+			std::function<void(float, GameObject* a)> updateFunc;
 
 			CollisionVolume*	boundingVolume;
 			PhysicsObject*		physicsObject;
